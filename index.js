@@ -1,6 +1,6 @@
 
 const Discord = require('discord.js'); //import discord.js
-const {loadJson} = require('./utils/utils');
+const {loadJson} = require('./utils/file-utils');
 const {onMessage} = require('./bot/message-handler');
 
 require('dotenv').config(); //initialize dotenv
