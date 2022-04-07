@@ -9,6 +9,14 @@ class Format {
   }
 }
 
+function renderZodiac(obj) {
+  return new Promise((resolve, reject) => {
+    ejs.renderFile('templates/hero-zodiac.ejs', Object.assign(obj, {Format}), {cache: true}, (err, t) => {
+      resolve(t)
+    });
+  });
+}
+
 function renderStats(obj) {
   return new Promise((resolve, reject) => {
     ejs.renderFile('templates/hero-stats.ejs', Object.assign(obj, {Format}), {cache: true}, (err, t) => {
@@ -18,5 +26,6 @@ function renderStats(obj) {
 }
 
 module.exports = {
-  renderStats
+  renderStats,
+  renderZodiac
 };

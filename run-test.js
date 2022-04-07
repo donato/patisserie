@@ -20,7 +20,8 @@ function runTest(artiData, heroData) {
   // test("!bs Great Chief 50");
   // test("!skill luluca s2");
   // test("!debuff 30 30");
-  test("!arti Ancient");
+  // test("!arti Ancient");
+  test("!farm Lulu");
   // test("!set luluca s1 blah blah");
 }
 

@@ -1,9 +1,10 @@
 const {nameSearch, limitedEvaluate} = require('../utils/utils');
-const {renderStats} = require('../utils/rendering');
+const {renderZodiac, renderStats} = require('../utils/rendering');
 const {getChannel} = require('../utils/discord-utils');
 const JSONdb = require('simple-json-db');
 const skillDb = new JSONdb('./db/skill-data.json');
-const artifactDb = new JSONdb('./db/artifact-data.json');
+// const artifactDb = new JSONdb('./db/artifact-data.json');
+const zodiacDb = new JSONdb('./db/zodiac-data.json');
 
 function effectivenessCalc(eff, res) {
   // return Math.max(15, Math.min(85, (100 + eff - res)));
@@ -24,6 +25,11 @@ function baseStats(heroData, name, level) {
   const obj = heroData[name].calculatedStatus[key];
   return {prefix, obj};
 }
+
+function getZodiac(heroData, name) {
+  return heroData[name].zodiac;
+}
+
 function onMessage(artiData, heroData, msg) {
   const text = msg.content;
   const ALL_HERO_NAMES = Object.keys(heroData);
@@ -97,6 +103,22 @@ function onMessage(artiData, heroData, msg) {
       return a.name == foundArti;
     });
     msg.channel.send(`<${artiObj.link}>`);
+    return;
+  }
+  if (text.indexOf('!farm') !== -1) {
+    const splits = text.split(' ');
+    const name = splits.slice(1);
+    const foundName = nameSearch(ALL_HERO_NAMES, name.join(' '));
+    const zodiac = getZodiac(heroData, foundName);
+    const zodiacMetadata = zodiacDb.get(zodiac);
+    console.log(name);
+    console.log(foundName);
+    console.log(zodiac);
+    console.log(zodiacMetadata);
+    renderZodiac(zodiacMetadata).then(text => {
+      msg.channel.send(text);
+    });
+
     return;
   }
   if (text.indexOf('!set') !== -1) {
