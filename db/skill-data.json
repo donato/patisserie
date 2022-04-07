@@ -1,0 +1,17 @@
+{
+    "Top Model Luluca": {
+        "s1": "Uses the suit's energy to attack the enemy. When used on the caster's turn, has a 40% chance to grant an extra attack with the same skill. When the enemy is not an Elite or Boss monster, damage sharing effects are ignored.",
+        "s2": "Manifests the suit's energy, increasing Combat Readiness of all allies by 10% and increasing Attack of the caster for 2 turns. Grants the caster and extra turn.",
+        "s3": "Transcends cosmic space to attack the enemy with dimensional energy, before granting the caster stealth for 2 turns. When the enemy is defeated, inflicts extinction and decreases the caster's skill cooldown by 1 turn. Damage dealt increases proportional to the caster's Speed."
+    },
+    "Luluca": {
+        "s1": "blah blah",
+        "s2": "With the blessing of the stars, grants increased Defense and barrier to all allies for 2 turns. Barrier strength increases proportional to the caster's Attack.",
+        "s3": "Attacks all enemies with the power of ruin, with a 60% chance to decrease Defense for 2 turns, before increasing the caster's Attack. This effect can stack up to 3 times."
+    },
+    "Dizzy": {
+        "s1": "Attacks all enemies with the power of magic, with a 25% chance to stun for 1 turn. Deals increased damage to debuffed enemies.",
+        "s2": "Attacks all enemies with a powerful ray, extending the duration of debuffs by 1 turn, except for those which prevent the enemy for moving, before decreasing Combat Readiness by 50%.",
+        "s3": "Unleashes a giant explosion to attack all enemies. The attack misses, but inflicts decreased Speed, Attack and Decrease Hit Chance for 2 turns regardless."
+    }
+}
