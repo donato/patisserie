@@ -30,6 +30,12 @@ function nameSearch(allNames, namePrefix) {
   return backupName;
 }
 
+function effectivenessCalc(eff, res) {
+  // return Math.max(15, Math.min(85, (100 + eff - res)));
+  return Math.max(0, Math.min(85, (100 + eff - res)));
+}
+
 module.exports = {
   nameSearch,
+  effectivenessCalc,
 };

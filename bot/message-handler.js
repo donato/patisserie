@@ -1,15 +1,11 @@
-const {nameSearch, limitedEvaluate} = require('../utils/utils');
+const {nameSearch, effectivenessCalc} = require('../utils/utils');
+const {limitedEvaluate} = require('../bot/bot-math');
 const {renderZodiac, renderStats} = require('../utils/rendering');
 const {getChannel} = require('../utils/discord-utils');
 const JSONdb = require('simple-json-db');
 const skillDb = new JSONdb('./db/skill-data.json');
 // const artifactDb = new JSONdb('./db/artifact-data.json');
 const zodiacDb = new JSONdb('./db/zodiac-data.json');
-
-function effectivenessCalc(eff, res) {
-  // return Math.max(15, Math.min(85, (100 + eff - res)));
-  return Math.max(0, Math.min(85, (100 + eff - res)));
-}
 
 function updateSkillData(hero, skill, description) {
   const data = skillDb.get(hero) || {};
@@ -65,8 +61,10 @@ function onMessage(artiData, heroData, msg) {
     const result = effectivenessCalc(parseInt(eff), parseInt(res));
     const rng = Math.floor(Math.random()*100);
     const message = (rng <= result) ? "Debuffed!" : "Resisted!";
-      msg.channel.send(`Chance: ${result.toString()}%\n` +
-        `${message} (Rng=${rng}%)`);
+    msg.channel.send(
+      `Chance: ${result.toString()}%\n` +
+      `${message} (Rng=${rng}%)`);
+    return;
   }
   if (text.indexOf('!link ') !== -1) {
     let [command, name] = text.split('!link ');
@@ -118,7 +116,6 @@ function onMessage(artiData, heroData, msg) {
     renderZodiac(zodiacMetadata).then(text => {
       msg.channel.send(text);
     });
-
     return;
   }
   if (text.indexOf('!set') !== -1) {
@@ -130,8 +127,6 @@ function onMessage(artiData, heroData, msg) {
     const foundName = nameSearch(ALL_HERO_NAMES, name.join(' '));
     const description = splits.slice(skillIndex +1);
     const skill = splits[skillIndex];
-    // console.log(foundName);
-    // console.log(description.join(' '));
     if (foundName) {
       updateSkillData(foundName, skill.toLowerCase(), description.join(' '));
       msg.channel.send("Recorded");
@@ -155,7 +150,7 @@ function onMessage(artiData, heroData, msg) {
     // }
     const skillObj = skillDb.get(foundName) || {};
     if (!skillObj[skill]) {
-      console.log('skill info not found');
+      console.log('Skill info not found');
       return;
     }
     msg.channel.send(`${skillObj[skill]}`);

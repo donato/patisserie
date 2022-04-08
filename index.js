@@ -5,6 +5,8 @@ const {onMessage} = require('./bot/message-handler');
 
 require('dotenv').config(); //initialize dotenv
 
+// invite link
+// https://discord.com/api/oauth2/authorize?client_id=957473918887792700&permissions=75776&scope=bot%20applications.commands
 
 // https://e7-optimizer-game-data.s3-accelerate.amazonaws.com/herodata.json
 const herodataPromise = loadJson('./db/e7herodata.json');
