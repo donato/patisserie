@@ -53,8 +53,15 @@ function onMessage(artiData, heroData, msg) {
       `!bs <heroname> <level (50 or 60)>\n` +
       `!link <heroname>`);
   }
+  if (text.indexOf('!reload') !== -1) {
+    zodiacDb.reload();
+    skillDb.reload();
+    msg.channel.send(`Database reloaded`);
+    return;
+  }
   if (text.indexOf('!speed') !== -1) {
     msg.channel.send(`<https://epic7x.com/speed-cheat-sheet/>`);
+    return;
   }
   if (text.indexOf('!debuff ') !== -1) {
     let [command, eff, res] = text.split(' ');
@@ -109,10 +116,6 @@ function onMessage(artiData, heroData, msg) {
     const foundName = nameSearch(ALL_HERO_NAMES, name.join(' '));
     const zodiac = getZodiac(heroData, foundName);
     const zodiacMetadata = zodiacDb.get(zodiac);
-    console.log(name);
-    console.log(foundName);
-    console.log(zodiac);
-    console.log(zodiacMetadata);
     renderZodiac(zodiacMetadata).then(text => {
       msg.channel.send(text);
     });
