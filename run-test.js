@@ -15,13 +15,16 @@ function runTest(artiData, heroData) {
       },
     });
   }
-  let text = process.argv.slice(2).join(' ') || '!bs Great Chief 50';
+  // let text = process.argv.slice(2).join(' ') || '!bs Great Chief 50';
   // test(text);
-  // test("!bs Great Chief 50");
+  test("!bs Great Chief 50");
+  // test("!bs amomo 50");
+  // test("!nick add amomo Angelic");
+  // test("!nick rm amomo");
   // test("!skill luluca s2");
   // test("!debuff 30 30");
   // test("!arti Ancient");
-  test("!farm Lulu");
+  // test("!farm Lulu");
   // test("!set luluca s1 blah blah");
 }
 

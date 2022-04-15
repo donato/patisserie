@@ -5,6 +5,7 @@ const {getChannel} = require('../utils/discord-utils');
 const JSONdb = require('simple-json-db');
 let skillDb = new JSONdb('./db/skill-data.json');
 // const artifactDb = new JSONdb('./db/artifact-data.json');
+let nicknameDb = new JSONdb('./db/nickname-data.json');
 let zodiacDb = new JSONdb('./db/zodiac-data.json');
 
 function updateSkillData(hero, skill, description) {
@@ -27,6 +28,12 @@ function getZodiac(heroData, name) {
 }
 
 function onMessage(artiData, heroData, msg) {
+  function heroSearch(name) {
+    return nameSearch(ALL_HERO_NAMES, name, nicknameDb);
+  }
+  function artiSearch(name) {
+    return nameSearch(ALL_ARTI_NAMES, name, nicknameDb);
+  }
   const text = msg.content;
   const ALL_HERO_NAMES = Object.keys(heroData);
   const ALL_ARTI_NAMES = artiData.map(a => a.name);
@@ -58,12 +65,37 @@ function onMessage(artiData, heroData, msg) {
     // skillDb.reload();
     skillDb = new JSONdb('./db/skill-data.json');
     zodiacDb = new JSONdb('./db/zodiac-data.json');
+    nicknameDb = new JSONdb('./db/nickname-data.json');
     msg.channel.send(`Database reloaded`);
     return;
   }
   if (text.indexOf('!speed') !== -1) {
     msg.channel.send(`<https://epic7x.com/speed-cheat-sheet/>`);
     return;
+  }
+  if (text.indexOf('!nick') !== -1) {
+    // !nick [add|rm] <nickname> <real name>
+    const columns = text.split(" ");
+    const action = columns[1];
+    const nick = columns[2];
+    if (action == 'add') {
+      const real = columns.slice(3).join(" ");
+      const foundName= heroSearch(real);
+      if (!foundName) {
+        msg.channel.send(`Hero not found`);
+        return;
+      }
+      msg.channel.send(`Nickname added for **${foundName}**`);
+      nicknameDb.set(nick, foundName);
+      return;
+    } else if (action == "rm") {
+      msg.channel.send(`Nickname removed **${nick}**`);
+      nicknameDb.delete(nick);
+      return;
+    } else {
+      msg.channel.send(`Please use "!nick [add|rm] <nickname> <real name>`);
+      return;
+    }
   }
   if (text.indexOf('!debuff ') !== -1) {
     let [command, eff, res] = text.split(' ');
@@ -77,7 +109,7 @@ function onMessage(artiData, heroData, msg) {
   }
   if (text.indexOf('!link ') !== -1) {
     let [command, name] = text.split('!link ');
-    name = nameSearch(ALL_HERO_NAMES, name);
+    name = heroSearch(name);
     name = name.toLowerCase().replaceAll(' ', '-');
     const url = `https://epic7x.com/character/${name}`;
     msg.channel.send(`${url}`);
@@ -88,7 +120,7 @@ function onMessage(artiData, heroData, msg) {
     const name = items.slice(1, -1).join(' ');
     const level = items[items.length -1];
     // const [command, rest] = text.split('!bs ');
-    const foundName = nameSearch(ALL_HERO_NAMES, name);
+    const foundName = heroSearch(name);
     if (!foundName) {
       msg.channel.send("Hero not found");
       return;
@@ -105,7 +137,7 @@ function onMessage(artiData, heroData, msg) {
       return;
     }
     const namePrefix = splits.slice(1).join(' ');
-    const foundArti = nameSearch(ALL_ARTI_NAMES, namePrefix);
+    const foundArti = artiSearch(namePrefix);
     const artiObj = artiData.find(a => {
       return a.name == foundArti;
     });
@@ -115,7 +147,7 @@ function onMessage(artiData, heroData, msg) {
   if (text.indexOf('!farm') !== -1) {
     const splits = text.split(' ');
     const name = splits.slice(1);
-    const foundName = nameSearch(ALL_HERO_NAMES, name.join(' '));
+    const foundName = heroSearch(name.join(' '));
     const zodiac = getZodiac(heroData, foundName);
     const zodiacMetadata = zodiacDb.get(zodiac);
     renderZodiac(zodiacMetadata).then(text => {
@@ -129,7 +161,7 @@ function onMessage(artiData, heroData, msg) {
       return ['s1', 's2', 's3'].indexOf(text.toLowerCase()) != -1;
     });
     const name = splits.slice(1, skillIndex);
-    const foundName = nameSearch(ALL_HERO_NAMES, name.join(' '));
+    const foundName = heroSearch(name.join(' '));
     const description = splits.slice(skillIndex +1);
     const skill = splits[skillIndex];
     if (foundName) {
@@ -144,7 +176,7 @@ function onMessage(artiData, heroData, msg) {
     const splits = text.split(' ');
     const name = splits.slice(1, splits.length-1).join(' ');
     const skill = splits[splits.length-1].toLowerCase();
-    const foundName = nameSearch(ALL_HERO_NAMES, name);
+    const foundName = heroSearch(name);
     if (!foundName) {
       console.log(`Couldn't find hero with that name`);
       return;

@@ -6,13 +6,10 @@ function toUpperCamelCase(str) {
   }).join(' ');
 }
 
-const NICK_NAMES = {
-  "tomoca": "Top Model Luluca"
-};
-function nameSearch(allNames, namePrefix) {
+function nameSearch(allNames, namePrefix, nicksDb) {
   namePrefix = namePrefix.toLowerCase();
-  if (NICK_NAMES[namePrefix]) {
-    return NICK_NAMES[namePrefix];
+  if (nicksDb.get(namePrefix)) {
+    return nicksDb.get(namePrefix);
   }
   // namePrefix = toUpperCamelCase(namePrefix);
   // if (heroData[namePrefix]) {
