@@ -8,6 +8,8 @@ let skillDb = new JSONdb('./db/skill-data.json');
 let nicknameDb = new JSONdb('./db/nickname-data.json');
 let zodiacDb = new JSONdb('./db/zodiac-data.json');
 
+const ADMIN_SERVERS = ['906362118914330694'];
+
 function updateSkillData(hero, skill, description) {
   const data = skillDb.get(hero) || {};
   data[skill] = description;
@@ -57,6 +59,7 @@ function onMessage(artiData, heroData, msg) {
       `!skill <hero> <skill (s1 or s2 or s3)\n` +
       `!set <hero> <skill (s1/s2/s3)> <Full text description>\n` +
       `!debuff <effectiveness> <effect resist>\n` +
+      `!nick <add|rm> <nickname> <real name>\n` +
       `!bs <heroname> <level (50 or 60)>\n` +
       `!link <heroname>`);
   }
@@ -78,7 +81,7 @@ function onMessage(artiData, heroData, msg) {
     const columns = text.split(" ");
     const action = columns[1];
     const nick = columns[2];
-    if (action == 'add') {
+    if (action == 'add' || action == "a") {
       const real = columns.slice(3).join(" ");
       const foundName= heroSearch(real);
       if (!foundName) {
@@ -129,6 +132,13 @@ function onMessage(artiData, heroData, msg) {
     renderStats(obj).then(statsText => {
       msg.channel.send(`${foundName}\n\n**${prefix}**\n${statsText}`);
     });
+    return;
+  }
+  if (text.indexOf('!serverinfo')) {
+    msg.channel.send(`Server id is <${msg.guildId}>`);
+    const isAdmin = ADMIN_SERVERS.indexOf(msg.guildId) !== -1;
+    const mode = isAdmin? "Admin" : "Read-only";
+    msg.channel.send(`Server mode is: \`<${mode}>\``);
     return;
   }
   if (text.indexOf('!arti') === 0) {
