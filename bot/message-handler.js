@@ -134,7 +134,7 @@ function onMessage(artiData, heroData, msg) {
     });
     return;
   }
-  if (text.indexOf('!serverinfo')) {
+  if (text.indexOf('!serverinfo') != -1) {
     msg.channel.send(`Server id is <${msg.guildId}>`);
     const isAdmin = ADMIN_SERVERS.indexOf(msg.guildId) !== -1;
     const mode = isAdmin? "Admin" : "Read-only";
