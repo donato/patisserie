@@ -18,22 +18,8 @@ function runTest(artiData, heroData) {
     });
     console.log("");
   }
-  // let text = process.argv.slice(2).join(' ') || '!bs Great Chief 50';
-  // test(text);
-  test("!help");
-  test("!serverinfo");
-
-  test("!cata ultra");
-  test("!farm Lulu");
-  test("!bs amomo 50");
-  test("!arti Ancient");
-  test("!s2 luluca");
-  test("!skills luluca");
-
-  test("!debuff 30 30");
-
-  test("!nick rm amomo");
-  test("!nick add amomo Angelic");
+  let text = process.argv.slice(2).join(' ') || '!bs Great Chief 50';
+  test(text);
 }
 
 

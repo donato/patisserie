@@ -9,9 +9,9 @@ class Format {
   }
 }
 
-function renderZodiac(obj) {
+function renderZodiac(name, obj) {
   return new Promise((resolve, reject) => {
-    ejs.renderFile('templates/hero-zodiac.ejs', Object.assign(obj, {Format}), {cache: true}, (err, t) => {
+    ejs.renderFile('templates/hero-zodiac.ejs', Object.assign(obj, {name: name}, {Format}), {cache: true}, (err, t) => {
       if (err) {
         console.log(err);
         reject();
@@ -21,10 +21,22 @@ function renderZodiac(obj) {
   });
 }
 
+function renderHelp() {
+  return new Promise((resolve, reject) => {
+    ejs.renderFile('templates/help.ejs', Object.assign({}, {Format}), {cache: true}, (err, t) => {
+      if (err) {
+        console.log(err);
+      }
+      resolve(t)
+    });
+  });
+}
 function renderStats(obj) {
   return new Promise((resolve, reject) => {
     ejs.renderFile('templates/hero-stats.ejs', Object.assign(obj, {Format}), {cache: true}, (err, t) => {
-      console.log(err);
+      if (err) {
+        console.log(err);
+      }
       resolve(t)
     });
   });
@@ -32,5 +44,6 @@ function renderStats(obj) {
 
 module.exports = {
   renderStats,
+  renderHelp,
   renderZodiac
 };

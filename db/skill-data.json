@@ -13,5 +13,8 @@
         "s1": "Attacks all enemies with the power of magic, with a 25% chance to stun for 1 turn. Deals increased damage to debuffed enemies.",
         "s2": "Attacks all enemies with a powerful ray, extending the duration of debuffs by 1 turn, except for those which prevent the enemy for moving, before decreasing Combat Readiness by 50%.",
         "s3": "Unleashes a giant explosion to attack all enemies. The attack misses, but inflicts decreased Speed, Attack and Decrease Hit Chance for 2 turns regardless."
+    },
+    "Angelic Montmorancy": {
+        "s3": "abc 123"
     }
 }
