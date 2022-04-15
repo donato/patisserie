@@ -7,6 +7,7 @@ let skillDb = new JSONdb('./db/skill-data.json');
 // const artifactDb = new JSONdb('./db/artifact-data.json');
 let nicknameDb = new JSONdb('./db/nickname-data.json');
 let zodiacDb = new JSONdb('./db/zodiac-data.json');
+let catalystDb = new JSONdb('./db/catalyst-data.json');
 
 const ADMIN_SERVERS = ['906362118914330694'];
 
@@ -30,8 +31,12 @@ function getZodiac(heroData, name) {
 }
 
 function onMessage(artiData, heroData, msg) {
+  const isAdmin = ADMIN_SERVERS.indexOf(msg.guildId) !== -1;
   function heroSearch(name) {
     return nameSearch(ALL_HERO_NAMES, name, nicknameDb);
+  }
+  function cataSearch(name) {
+    return nameSearch(ALL_CATALYST_NAMES, name, nicknameDb);
   }
   function artiSearch(name) {
     return nameSearch(ALL_ARTI_NAMES, name, nicknameDb);
@@ -39,6 +44,7 @@ function onMessage(artiData, heroData, msg) {
   const text = msg.content;
   const ALL_HERO_NAMES = Object.keys(heroData);
   const ALL_ARTI_NAMES = artiData.map(a => a.name);
+  const ALL_CATALYST_NAMES = Object.keys(catalystDb.JSON());
 
   if (msg.author.bot) {
     return;
@@ -64,9 +70,14 @@ function onMessage(artiData, heroData, msg) {
       `!link <heroname>`);
   }
   if (text.indexOf('!reload') !== -1) {
+    if (!isAdmin) {
+      msg.channel.send(`Command requires \`Admin\`.`);
+      return;
+    }
     // zodiacDb.reload(); // only on node-json-db
     // skillDb.reload();
     skillDb = new JSONdb('./db/skill-data.json');
+    catalystDb = new JSONdb('./db/catalyst-data.json');
     zodiacDb = new JSONdb('./db/zodiac-data.json');
     nicknameDb = new JSONdb('./db/nickname-data.json');
     msg.channel.send(`Database reloaded`);
@@ -76,7 +87,22 @@ function onMessage(artiData, heroData, msg) {
     msg.channel.send(`<https://epic7x.com/speed-cheat-sheet/>`);
     return;
   }
+  if (text.indexOf('!cata') !== -1) {
+    let [command, nick] = text.split('!cata ');
+    const foundCata = cataSearch(nick);
+    if (!foundCata) {
+      msg.channel.send(`Catalyst not found.`);
+      return;
+    }
+
+    msg.channel.send(`Farm **${foundCata}** in: \`${catalystDb.get(foundCata).farm}\``);
+    return;
+  }
   if (text.indexOf('!nick') !== -1) {
+    if (!isAdmin) {
+      msg.channel.send(`Command requires \`Admin\`.`);
+      return;
+    }
     // !nick [add|rm] <nickname> <real name>
     const columns = text.split(" ");
     const action = columns[1];
@@ -136,9 +162,8 @@ function onMessage(artiData, heroData, msg) {
   }
   if (text.indexOf('!serverinfo') != -1) {
     msg.channel.send(`Server id is <${msg.guildId}>`);
-    const isAdmin = ADMIN_SERVERS.indexOf(msg.guildId) !== -1;
     const mode = isAdmin? "Admin" : "Read-only";
-    msg.channel.send(`Server mode is: \`<${mode}>\``);
+    msg.channel.send(`Server mode is: \`${mode}\``);
     return;
   }
   if (text.indexOf('!arti') === 0) {
@@ -160,12 +185,19 @@ function onMessage(artiData, heroData, msg) {
     const foundName = heroSearch(name.join(' '));
     const zodiac = getZodiac(heroData, foundName);
     const zodiacMetadata = zodiacDb.get(zodiac);
+    zodiacMetadata.awkCatalystLocation = catalystDb.get(zodiacMetadata.awkCatalyst);
+    zodiacMetadata.epicAwkCatalystLocation = catalystDb.get(zodiacMetadata.epicAwkCatalyst);
+    zodiacMetadata.skillCatalystLocation = catalystDb.get(zodiacMetadata.skillCatalyst);
     renderZodiac(zodiacMetadata).then(text => {
       msg.channel.send(text);
     });
     return;
   }
   if (text.indexOf('!set') !== -1) {
+    if (!isAdmin) {
+      msg.channel.send(`Command requires \`Admin\`.`);
+      return;
+    }
     const splits = text.split(' ');
     const skillIndex = splits.findIndex(text => {
       return ['s1', 's2', 's3'].indexOf(text.toLowerCase()) != -1;
@@ -201,6 +233,9 @@ function onMessage(artiData, heroData, msg) {
       return;
     }
     msg.channel.send(`${skillObj[skill]}`);
+    return;
+  }
+  if (!isAdmin) {
     return;
   }
   try {

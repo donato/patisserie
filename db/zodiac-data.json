@@ -3,120 +3,84 @@
     "symbol": "waterbearer",
     "zodiac": "Aquarius",
     "awkCatalyst": "Order of the Shield Insignia",
-    "awkCatalystLocation": "6-2 || 6-6",
     "skillCatalyst": "Leather Sheath",
-    "skillCatalystLocation": "4-8",
-    "epicAwkCatalyst": "Fighter Medal",
-    "epicAwkCatalystLocation": "1-S2"
+    "epicAwkCatalyst": "Fighter Medal"
   },
   "ram": {
     "symbol": "ram",
     "zodiac": "Aries",
     "awkCatalyst": "Blessing of Orbis",
-    "awkCatalystLocation": "1-7",
     "skillCatalyst": "Path Power Loop",
-    "skillCatalystLocation": "2-7",
-    "epicAwkCatalyst": "Nightmare Mask",
-    "epicAwkCatalystLocation": "6-9"
+    "epicAwkCatalyst": "Nightmare Mask"
   },
   "crab": {
     "symbol": "crab",
     "zodiac": "Cancer",
     "awkCatalyst": "Special Alarm Loop",
-    "awkCatalystLocation": "2-2",
     "skillCatalyst": "Baby Mouse Insignia",
-    "skillCatalystLocation": "3-8 || 4-S",
-    "epicAwkCatalyst": "The Heart of Hypocrisy",
-    "epicAwkCatalystLocation": "9-3"
+    "epicAwkCatalyst": "The Heart of Hypocrisy"
   },
   "Goat": {
     "symbol": "Goat",
     "zodiac": "Capricorn",
     "awkCatalyst": "Cursed Ashes",
-    "awkCatalystLocation": "8S-10S2",
     "skillCatalyst": "Slime Jelly",
-    "skillCatalystLocation": "1-2 || 2S-S4",
-    "epicAwkCatalyst": "Dragon's Wrath",
-    "epicAwkCatalystLocation": "3-S3"
+    "epicAwkCatalyst": "Dragon's Wrath"
   },
   "twins": {
     "symbol": "twins",
     "zodiac": "Gemini",
     "awkCatalyst": "Small Sun Badge",
-    "awkCatalystLocation": "9-5",
     "skillCatalyst": "Ring of Glory",
-    "skillCatalystLocation": "9-1",
-    "epicAwkCatalyst": "Fused Nerve",
-    "epicAwkCatalystLocation": "9-8"
+    "epicAwkCatalyst": "Fused Nerve"
   },
   "lion": {
     "symbol": "lion",
     "zodiac": "Leo",
     "awkCatalyst": "Ultra Fang",
-    "awkCatalystLocation": "2S-S2",
     "skillCatalyst": "Twisted Fang",
-    "skillCatalystLocation": "8-S2",
-    "epicAwkCatalyst": "Blazing Soul",
-    "epicAwkCatalystLocation": "4-9"
+    "epicAwkCatalyst": "Blazing Soul"
   },
   "scales": {
     "symbol": "scales",
     "zodiac": "Libra",
     "awkCatalyst": "Dream Time Circuit",
-    "awkCatalystLocation": "6-9, 7-5",
     "skillCatalyst": "Mysterious Flash",
-    "skillCatalystLocation": "2-1",
-    "epicAwkCatalyst": "Reingar Student ID",
-    "epicAwkCatalystLocation": "2-2"
+    "epicAwkCatalyst": "Reingar Student ID"
   },
   "fish": {
     "symbol": "fish",
     "zodiac": "Pisces",
     "awkCatalyst": "Blood Flaked Bone",
-    "awkCatalystLocation": "8-9",
     "skillCatalyst": "Strange Jelly",
-    "skillCatalystLocation": "2S-S6 || 9-8",
-    "epicAwkCatalyst": "Ancient Creature Nucleus",
-    "epicAwkCatalystLocation": "7-S6"
+    "epicAwkCatalyst": "Ancient Creature Nucleus"
   },
   "archer": {
     "symbol": "archer",
     "zodiac": "Sagitarrius",
     "awkCatalyst": "Cold Look",
-    "awkCatalystLocation": "8-6",
     "skillCatalyst": "Archer's Vision",
-    "skillCatalystLocation": "4-S6",
-    "epicAwkCatalyst": "Mercenary's Medicine",
-    "epicAwkCatalystLocation": "4-4"
+    "epicAwkCatalyst": "Mercenary's Medicine"
   },
   "scorpion": {
     "symbol": "scorpion",
     "zodiac": "Scorpio",
     "awkCatalyst": "Erikion Carapace",
-    "awkCatalystLocation": "3-4",
     "skillCatalyst": "Sharp Spearhead",
-    "skillCatalystLocation": "4-S6",
-    "epicAwkCatalyst": "Black Curse Powder",
-    "epicAwkCatalystLocation": "10-S2"
+    "epicAwkCatalyst": "Black Curse Powder"
   },
   "bull": {
     "symbol": "bull",
     "zodiac": "Taurus",
     "awkCatalyst": "Blazing Rage",
-    "awkCatalystLocation": "3-S3 || 5-5",
     "skillCatalyst": "Shiny Enchantment",
-    "skillCatalystLocation": "5-4",
-    "epicAwkCatalyst": "Horn of Desire",
-    "epicAwkCatalystLocation": "8-S3"
+    "epicAwkCatalyst": "Horn of Desire"
   },
   "maiden": {
     "symbol": "maiden",
     "zodiac": "Virgo",
     "awkCatalyst": "Eternal Forest Dust",
-    "awkCatalystLocation": "5-3",
     "skillCatalyst": "Flame of Soul",
-    "skillCatalystLocation": "9-9",
-    "epicAwkCatalyst": "Demon Blood Gem",
-    "epicAwkCatalystLocation": "5-6"
+    "epicAwkCatalyst": "Demon Blood Gem"
   }
 }
