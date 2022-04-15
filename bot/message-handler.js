@@ -50,12 +50,16 @@ function onMessage(artiData, heroData, msg) {
   if (msg.author.bot) {
     return;
   }
+  
   if (command === '!welcome') {
     msg.guild.channels.fetch()
       .then(channels => {
-        // msg.reply('Welcome');
         msg.channel.send(`Welcome to our disc!\n Please check ${getChannel(channels, 'guild-guidelines')} too :)`);
       });
+    return;
+  }
+  if (command == '!echo') {
+    msg.channel.send(`${JSON.stringify(msg)}`);
     return;
   }
   if (command === '!help') {
