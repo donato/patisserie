@@ -5,6 +5,11 @@ function getChannel(channels, name) {
   });
 }
 
+function extractDiscordId(text) {
+  return text.match(/\<\@\!(\d+)\>/)[1];
+}
+
 module.exports = {
+  extractDiscordId,
   getChannel
 };

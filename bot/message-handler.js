@@ -1,20 +1,34 @@
 const {nameSearch, effectivenessCalc} = require('../utils/utils');
 const {limitedEvaluate} = require('../bot/bot-math');
-const {renderZodiac, renderHelp, renderStats} = require('../utils/rendering');
-const {getChannel} = require('../utils/discord-utils');
+const {Format, renderZodiac, renderHelp, renderStats} = require('../utils/rendering');
+const {extractDiscordId, getChannel} = require('../utils/discord-utils');
 const JSONdb = require('simple-json-db');
 let skillDb = new JSONdb('./db/skill-data.json');
 // const artifactDb = new JSONdb('./db/artifact-data.json');
 let nicknameDb = new JSONdb('./db/nickname-data.json');
 let zodiacDb = new JSONdb('./db/zodiac-data.json');
 let catalystDb = new JSONdb('./db/catalyst-data.json');
+let bakeryDb = new JSONdb('./db/bakery-data.json');
 
 const ADMIN_SERVERS = ['906362118914330694'];
-
+const PATTIES_ID = '<@!957473918887792700>';
+const ALL_PASTRIES = [
+  'cake',
+  'pie',
+  'muffin',
+  'cupcake',
+  'cookie',
+  'scone',
+  'biscuit'
+];
 function updateSkillData(hero, skill, description) {
   const data = skillDb.get(hero) || {};
   data[skill] = description;
   skillDb.set(hero, data);
+}
+function chooseOne(arr) {
+  const index = Math.floor(Math.random() * arr.length);
+  return arr[index];
 }
 
 function baseStats(heroData, name, level) {
@@ -142,8 +156,8 @@ function onMessage(artiData, heroData, msg) {
   //
   if (command == '!farm') {
     const splits = text.split(' ');
-    const name = splits.slice(1);
-    const foundName = heroSearch(name.join(' '));
+    const name = splits.slice(1).join(' ');
+    const foundName = heroSearch(name);
     const zodiac = getZodiac(heroData, foundName);
     const zodiacMetadata = zodiacDb.get(zodiac);
     zodiacMetadata.awkCatalystLocation = catalystDb.get(zodiacMetadata.awkCatalyst);
@@ -152,6 +166,24 @@ function onMessage(artiData, heroData, msg) {
     renderZodiac(foundName, zodiacMetadata).then(text => {
       msg.channel.send(text);
     });
+    return;
+  }
+
+  if (command === '!bake') {
+    const splits = text.split(' ');
+    const names = splits.slice(1);
+    for (const n of names) {
+      const id = extractDiscordId(n);
+      if (id != null) {
+        const user = bakeryDb.get(id) || {};
+        user.received = user.received || 0;
+        user.received++;
+        const pastry = chooseOne(ALL_PASTRIES);
+        msg.channel.send(`Here! I've baked a ${pastry} for <@${id}> <3\n` +
+        `That's their ${Format.number(user.received)} pastry!`);
+        bakeryDb.set(id, user);
+      }
+    }
     return;
   }
 

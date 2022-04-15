@@ -1,0 +1,14 @@
+{
+    "123": {
+        "received": 11,
+        "receided": 2
+    },
+    "<@!123>,123": {
+        "received": 0,
+        "receided": null
+    },
+    "<@!123>": {
+        "received": 0,
+        "receided": null
+    }
+}

@@ -43,6 +43,7 @@ function renderStats(obj) {
 }
 
 module.exports = {
+  Format,
   renderStats,
   renderHelp,
   renderZodiac
