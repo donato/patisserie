@@ -3,9 +3,9 @@ const {limitedEvaluate} = require('../bot/bot-math');
 const {renderZodiac, renderStats} = require('../utils/rendering');
 const {getChannel} = require('../utils/discord-utils');
 const JSONdb = require('simple-json-db');
-const skillDb = new JSONdb('./db/skill-data.json');
+let skillDb = new JSONdb('./db/skill-data.json');
 // const artifactDb = new JSONdb('./db/artifact-data.json');
-const zodiacDb = new JSONdb('./db/zodiac-data.json');
+let zodiacDb = new JSONdb('./db/zodiac-data.json');
 
 function updateSkillData(hero, skill, description) {
   const data = skillDb.get(hero) || {};
@@ -54,8 +54,10 @@ function onMessage(artiData, heroData, msg) {
       `!link <heroname>`);
   }
   if (text.indexOf('!reload') !== -1) {
-    zodiacDb.reload();
-    skillDb.reload();
+    // zodiacDb.reload(); // only on node-json-db
+    // skillDb.reload();
+    skillDb = new JSONdb('./db/skill-data.json');
+    zodiacDb = new JSONdb('./db/zodiac-data.json');
     msg.channel.send(`Database reloaded`);
     return;
   }
