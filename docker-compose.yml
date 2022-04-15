@@ -11,4 +11,5 @@ services:
     volumes:
       - ./.env:/usr/src/app/.env
       - ./db:/usr/src/app/db
+    restart: unless-stopped
 

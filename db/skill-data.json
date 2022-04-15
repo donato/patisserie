@@ -5,7 +5,7 @@
         "s3": "Transcends cosmic space to attack the enemy with dimensional energy, before granting the caster stealth for 2 turns. When the enemy is defeated, inflicts extinction and decreases the caster's skill cooldown by 1 turn. Damage dealt increases proportional to the caster's Speed."
     },
     "Luluca": {
-        "s1": "blah blah",
+        "s1": "Attacks with intense elemental force, with a 50% chance to decrease Defense for 2 turns. Damage dealt increases proportional to the amount of the enemy's lost Health.",
         "s2": "With the blessing of the stars, grants increased Defense and barrier to all allies for 2 turns. Barrier strength increases proportional to the caster's Attack.",
         "s3": "Attacks all enemies with the power of ruin, with a 60% chance to decrease Defense for 2 turns, before increasing the caster's Attack. This effect can stack up to 3 times."
     },
