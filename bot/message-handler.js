@@ -59,7 +59,7 @@ function onMessage(artiData, heroData, msg) {
     return;
   }
   if (command == '!echo') {
-    msg.channel.send(`${JSON.stringify(msg)}`);
+    msg.channel.send(`\`\`\`${JSON.stringify(msg)}\`\`\``);
     return;
   }
   if (command === '!help') {
