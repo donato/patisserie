@@ -12,6 +12,10 @@ class Format {
 function renderZodiac(obj) {
   return new Promise((resolve, reject) => {
     ejs.renderFile('templates/hero-zodiac.ejs', Object.assign(obj, {Format}), {cache: true}, (err, t) => {
+      if (err) {
+        console.log(err);
+        reject();
+      }
       resolve(t)
     });
   });
@@ -20,6 +24,7 @@ function renderZodiac(obj) {
 function renderStats(obj) {
   return new Promise((resolve, reject) => {
     ejs.renderFile('templates/hero-stats.ejs', Object.assign(obj, {Format}), {cache: true}, (err, t) => {
+      console.log(err);
       resolve(t)
     });
   });
