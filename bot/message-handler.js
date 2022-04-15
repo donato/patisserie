@@ -177,13 +177,13 @@ function onMessage(artiData, heroData, msg) {
         msg.channel.send(`Command requires \`Admin\`.`);
         return;
       }
-      const name = splits.splice(1, setIndex - 1).join(' ');
+      const name = splits.slice(1, setIndex).join(' ');
       const foundName = heroSearch(name);
       if (!foundName) {
         msg.channel.send(`Couldn't find hero with that name`);
         return;
       }
-      const description = splits.slice(setIndex).join(' ');
+      const description = splits.slice(setIndex + 1).join(' ');
       const skill = command.slice(1);
       updateSkillData(foundName, skill, description);
       msg.channel.send(`**${skill}** updated for **${foundName}**.`);
