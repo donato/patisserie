@@ -1,15 +1,7 @@
 {
     "123": {
-        "received": 11,
+        "received": 14,
         "receided": 2
-    },
-    "<@!123>,123": {
-        "received": 0,
-        "receided": null
-    },
-    "<@!123>": {
-        "received": 0,
-        "receided": null
     },
     "135042035089408000": {
         "received": 1

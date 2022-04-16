@@ -32,7 +32,14 @@ function effectivenessCalc(eff, res) {
   return Math.max(0, Math.min(85, (100 + eff - res)));
 }
 
+function chooseOne(arr) {
+  const index = Math.floor(Math.random() * arr.length);
+  return arr[index];
+}
+
 module.exports = {
+  chooseOne,
   nameSearch,
+  toUpperCamelCase,
   effectivenessCalc,
 };
