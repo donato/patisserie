@@ -1,6 +1,7 @@
 const {nameSearch, effectivenessCalc} = require('../utils/utils');
 const {limitedEvaluate} = require('../bot/bot-math');
 const {Format, renderZodiac, renderHelp, renderStats} = require('../utils/rendering');
+const {giftPastry} = require('../bot/bakery');
 const {extractDiscordId, getChannel} = require('../utils/discord-utils');
 const JSONdb = require('simple-json-db');
 let skillDb = new JSONdb('./db/skill-data.json');
@@ -12,23 +13,11 @@ let bakeryDb = new JSONdb('./db/bakery-data.json');
 
 const ADMIN_SERVERS = ['906362118914330694'];
 const PATTIES_ID = '<@!957473918887792700>';
-const ALL_PASTRIES = [
-  'cake',
-  'pie',
-  'muffin',
-  'cupcake',
-  'cookie',
-  'scone',
-  'biscuit'
-];
+
 function updateSkillData(hero, skill, description) {
   const data = skillDb.get(hero) || {};
   data[skill] = description;
   skillDb.set(hero, data);
-}
-function chooseOne(arr) {
-  const index = Math.floor(Math.random() * arr.length);
-  return arr[index];
 }
 
 function baseStats(heroData, name, level) {
@@ -169,19 +158,14 @@ function onMessage(artiData, heroData, msg) {
     return;
   }
 
-  if (command === '!bake') {
+  if (command === '!bake' || command === '!gift') {
     const splits = text.split(' ');
     const names = splits.slice(1);
     for (const n of names) {
       const id = extractDiscordId(n);
       if (id != null) {
-        const user = bakeryDb.get(id) || {};
-        user.received = user.received || 0;
-        user.received++;
-        const pastry = chooseOne(ALL_PASTRIES);
-        msg.channel.send(`Here! I've baked a ${pastry} for <@${id}> <3\n` +
-        `That's their ${Format.number(user.received)} pastry!`);
-        bakeryDb.set(id, user);
+        giftPastry(msg.author.id, id, bakeryDb)
+          .then(text => msg.channel.send(text));
       }
     }
     return;
