@@ -88,7 +88,7 @@ function giftPastry(sender, receiver, bakeryDb) {
 
         const rarity = dist.chooseOne();
         const pastry = toUpperCamelCase(bake(rarity));
-        const message = `Order's up! I've baked a **${pastry}** __${toUpperCamelCase(rarity)}__ for <@${receiver}>!\n` +
+        const message = `Order's up! I've baked a **${pastry}** ___(${toUpperCamelCase(rarity)})___ for <@${receiver}>!\n` +
         `That's their ${Format.count(user.received)} pastry!`;
         resolve(message);
   });
