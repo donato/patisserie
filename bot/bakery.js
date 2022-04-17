@@ -108,7 +108,7 @@ function bakeryStats(userId, bakeryDb) {
   const stats = Object.keys(user.sent)
     .map(rarity => `${toUpperCamelCase(rarity)}: ${user.sent[rarity]}`);
   
-  return Promise.resolve(stats);
+  return Promise.resolve(stats.join('\n'));
 }
 
 module.exports = {

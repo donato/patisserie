@@ -4,6 +4,13 @@ const {loadJson} = require('./utils/file-utils');
 const artiPromise = loadJson('./db/artis.json');
 const herodataPromise = loadJson('./db/e7herodata.json');
 
+function printHelper(t) {
+  if (typeof t != 'string') {
+    throw "send object of wrong type";
+  }
+  console.log(t);
+
+}
 function runTest(artiData, heroData) {
   function test(text) {
     console.log(`$ ${text}`);
@@ -13,7 +20,7 @@ function runTest(artiData, heroData) {
       content: text,
       guildId: 123,
       channel: {
-        send: console.log
+        send: printHelper
       },
     });
     console.log("");
