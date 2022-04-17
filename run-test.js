@@ -9,7 +9,7 @@ function runTest(artiData, heroData) {
     console.log(`$ ${text}`);
     // todo "!bs great chief 60"
     onMessage(artiData, heroData, {
-      author: { bot: false },
+      author: { bot: false, id: 100 },
       content: text,
       guildId: 123,
       channel: {

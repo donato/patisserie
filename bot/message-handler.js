@@ -1,7 +1,7 @@
 const {nameSearch, effectivenessCalc} = require('../utils/utils');
 const {limitedEvaluate} = require('../bot/bot-math');
 const {Format, renderZodiac, renderHelp, renderStats} = require('../utils/rendering');
-const {giftPastry} = require('../bot/bakery');
+const {bakeryStats, giftPastry} = require('../bot/bakery');
 const {extractDiscordId, getChannel} = require('../utils/discord-utils');
 const JSONdb = require('simple-json-db');
 let skillDb = new JSONdb('./db/skill-data.json');
@@ -168,6 +168,15 @@ function onMessage(artiData, heroData, msg) {
           .then(text => msg.channel.send(text));
       }
     }
+    return;
+  }
+
+  if (command === '!bakestats') {
+    const splits = text.split(' ');
+    const name = splits[1] || "";
+    const id = extractDiscordId(name) || msg.author.id;
+    bakeryStats(id, bakeryDb)
+      .then(text => msg.channel.send(text));
     return;
   }
 

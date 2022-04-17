@@ -78,22 +78,40 @@ function bake(rarity) {
   }
 }
 
-function giftPastry(sender, receiver, bakeryDb) {
+function giftPastry(senderId, receiverId, bakeryDb) {
   const dist = new Distribution(PASTRY_RARITY);
   return new Promise(resolve => {
-        const user = bakeryDb.get(receiver) || {};
-        user.received = user.received || 0;
-        user.received++;
-        bakeryDb.set(receiver, user);
-
         const rarity = dist.chooseOne();
         const pastry = toUpperCamelCase(bake(rarity));
-        const message = `Order's up! I've baked a **${pastry}** ___(${toUpperCamelCase(rarity)})___ for <@${receiver}>!\n` +
+
+        const user = bakeryDb.get(receiverId) || {};
+        user.received = user.received || 0;
+        user.received++;
+        bakeryDb.set(receiverId, user);
+
+        const sender = bakeryDb.get(senderId) || {};
+        sender.sent = sender.sent || {};
+        sender.sent[rarity] = (sender.sent[rarity] || 0) + 1;
+        bakeryDb.set(senderId, sender);
+
+        const message = `Order's up! I've baked a **${pastry}** ___(${toUpperCamelCase(rarity)})___ for <@${receiverId}>!\n` +
         `That's their ${Format.count(user.received)} pastry!`;
         resolve(message);
   });
 }
 
+function bakeryStats(userId, bakeryDb) {
+  const user = bakeryDb.get(userId);
+  if (!user || !user.sent) {
+    return Promise.resolve("No bake stats available.");
+  }
+  const stats = Object.keys(user.sent)
+    .map(rarity => `${toUpperCamelCase(rarity)}: ${user.sent[rarity]}`);
+  
+  return Promise.resolve(stats);
+}
+
 module.exports = {
+  bakeryStats,
   giftPastry
 }
