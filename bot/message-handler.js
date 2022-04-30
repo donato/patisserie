@@ -163,7 +163,7 @@ function onMessage(artiData, heroData, msg) {
     const names = splits.slice(1);
     for (const n of names) {
       const id = extractDiscordId(n);
-      if (id != null) {
+      if (id) {
         giftPastry(msg.author.id, id, bakeryDb)
           .then(text => msg.channel.send(text));
       }
