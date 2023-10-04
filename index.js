@@ -2,6 +2,7 @@
 const Discord = require('discord.js'); //import discord.js
 const {loadJson} = require('./utils/file-utils');
 const {onMessage} = require('./bot/message-handler');
+const redis = require('redis');
 
 require('dotenv').config(); //initialize dotenv
 
@@ -12,16 +13,19 @@ require('dotenv').config(); //initialize dotenv
 const herodataPromise = loadJson('./db/e7herodata.json');
 const artiPromise = loadJson('./db/artis.json');
 
+const redisClient = redis.createClient({
+  url: process.env.REDIS_HOST
+});
+client.on('error', (err) => console.log('Redis Client Error', err));
+await client.connect();
+
+
 // https://discord.js.org/#/docs/discord.js/stable/class/GuildChannel?scrollTo=name
 const client = new Discord.Client({
   intents: [Discord.Intents.FLAGS.GUILDS, Discord.Intents.FLAGS.GUILD_MESSAGES] });
 
 client.on('message', msg => {
-  herodataPromise.then(heroData => {
-    artiPromise.then(artiData => {
-      onMessage(artiData, heroData, msg);
-    });
-  });
+  onMessage(msg);
 });
 
 client.on('ready', () => {
