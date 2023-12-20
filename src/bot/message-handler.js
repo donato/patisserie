@@ -3,7 +3,9 @@ const {Format, renderZodiac, renderHelp, renderStats} = require('../utils/render
 const {bakeryStats, giftPastry} = require('../bot/bakery');
 const {extractDiscordId, getChannel} = require('../utils/discord-utils');
 const JSONdb = require('simple-json-db');
-let bakeryDb = new JSONdb('./db/bakery-data.json');
+
+
+let bakeryDb = new JSONdb('/usr/appdata/patisserie/bakery-data.json');
 
 const ADMIN_SERVERS = ['906362118914330694'];
 const PATTIES_ID = '<@!957473918887792700>';

@@ -9,15 +9,16 @@ require('dotenv').config(); //initialize dotenv
 // invite link
 // https://discord.com/api/oauth2/authorize?client_id=957473918887792700&permissions=75776&scope=bot%20applications.commands
 
-// https://e7-optimizer-game-data.s3-accelerate.amazonaws.com/herodata.json
-const herodataPromise = loadJson('./db/e7herodata.json');
-const artiPromise = loadJson('./db/artis.json');
 
-const redisClient = redis.createClient({
-  url: process.env.REDIS_HOST
-});
-client.on('error', (err) => console.log('Redis Client Error', err));
-await client.connect();
+// (async function main () {
+//   const redisClient = redis.createClient({
+//     url: process.env.REDIS_HOST
+//   });
+//   redisClient.on('error', (err) => console.log('Redis Client Error', err));
+//   await redisClient.connect();
+// })();
+
+
 
 
 // https://discord.js.org/#/docs/discord.js/stable/class/GuildChannel?scrollTo=name

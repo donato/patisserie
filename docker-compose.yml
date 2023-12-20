@@ -1,22 +1,25 @@
 version: '3.4'
 
+# docker build . --tag donato/patisserie
+# docker run -d --name "nodemon-test" -p 1337:1337 oze4/nodemon-docker-test
+
 services:
   patisserie:
-    image: patisserie
+    image: donato/patisserie
     build:
       context: .
       dockerfile: ./Dockerfile
     environment:
       NODE_ENV: production
-    volumes:
-      - ./.env:/usr/src/app/.env
-      - ./db:/usr/src/app/db
+    # volumes:
+    #   - ./.env:/usr/src/app/.env
+    #   - ./db:/usr/src/app/db
     restart: unless-stopped
-  my-redis:
-    image: redis:6.2-alpine
-    restart: always
-    ports:
-      - '6379:6379'
-    command: redis-server --save 20 1 --loglevel warning #--requirepass eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81
-    volumes: 
-      - db/redis:/data
+  # my-redis:
+  #   image: redis:6.2-alpine
+  #   restart: always
+  #   ports:
+  #     - '6379:6379'
+  #   command: redis-server --save 20 1 --loglevel warning #--requirepass eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81
+  #   volumes: 
+  #     - db/redis:/
