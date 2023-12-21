@@ -1,11 +1,11 @@
 # docker build . --tag donato/patisserie
 # Set environment variables for:
-#    CLIENT_TOKEN= from discord
-#    REDIS_HOST
-#    
+#     CLIENT_TOKEN= from discord
+#     REDIS_HOST
 # Mount
 #     /usr/src/app/src = /mnt/user/development/patisserie/src/
 #     /usr/src/app/db = /mnt/user/appdata/patisserie/
+
 FROM node:latest
 
 # ENV NODE_ENV=production

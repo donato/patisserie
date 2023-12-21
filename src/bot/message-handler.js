@@ -3,6 +3,7 @@ const {Format, renderZodiac, renderHelp, renderStats} = require('../utils/render
 const {bakeryStats, giftPastry} = require('../bot/bakery');
 const {extractDiscordId, getChannel} = require('../utils/discord-utils');
 const JSONdb = require('simple-json-db');
+const PubSub = require('pubsub-js');
 
 
 let bakeryDb = new JSONdb('/usr/appdata/patisserie/bakery-data.json');
@@ -11,10 +12,10 @@ const ADMIN_SERVERS = ['906362118914330694'];
 const PATTIES_ID = '<@!957473918887792700>';
 
 
-function onMessage(msg) {
+function onMessage(client, tornDb, tornApiUtils, msg) {
   const text = msg.content;
   const isAdmin = ADMIN_SERVERS.indexOf(msg.guildId) !== -1;
-  const command = text.split(" ")[0];
+  const [command, arg1, arg2] = text.split(" ");
 
   if (msg.author.bot) {
     return;
@@ -31,6 +32,7 @@ function onMessage(msg) {
     msg.channel.send(`\`\`\`${JSON.stringify(msg)}\`\`\``);
     return;
   }
+
   if (command === '!help') {
     renderHelp().then(text => {
       msg.channel.send(`${text}`);
@@ -38,13 +40,21 @@ function onMessage(msg) {
     return;
   }
 
-  if (command === '!reload') {
-    if (!isAdmin) {
-      msg.channel.send(`Command requires \`Admin\`.`);
-      return;
-    }
-    msg.channel.send(`Database reloaded`);
+  if (command == '!api-key') {
+    const apiKeys = tornDb.get('torn_api_keys') || {};
+    apiKeys.list = apiKeys.list || [];
+    apiKeys.list.push(arg1);
+    apiKeys.user_ids = apiKeys.user_ids || [];
+    apiKeys.user_ids.push(msg.author.id);
+    tornDb.set('torn_api_keys', apiKeys);
+    msg.channel.send(`API Key added`);
     return;
+  }
+
+  if (command == '!verify') {
+    const id = extractDiscordId(arg1) || msg.author.id;
+    msg.channel.send(`Verifying ${id}...`);
+    tornApiUtils.addToQueue(tornApiUtils.verifyQueueEvent(id, msg.channelId));
   }
 
   if (command == '!serverinfo') {
@@ -57,7 +67,6 @@ function onMessage(msg) {
     msg.channel.send(`<https://epic7x.com/speed-cheat-sheet/>`);
     return;
   }
-
 
   if (command === '!bake' || command === '!gift') {
     const splits = text.split(' ');

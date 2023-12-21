@@ -1,4 +1,5 @@
-gear/
+#only included for typing in code-server, not actually used by docker
+src/node_modules
 
 # Logs
 logs

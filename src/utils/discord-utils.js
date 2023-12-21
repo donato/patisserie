@@ -5,7 +5,11 @@ function getChannel(channels, name) {
   });
 }
 
+
 function extractDiscordId(text) {
+  if (text == null) {
+    return false;
+  }
   const matches = text.match(/\<\@(\d+)\>/);
   // const matches = text.match(/\<\@\!(\d+)\>/);
   if (!matches || matches.length != 2) {
