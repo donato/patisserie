@@ -5,6 +5,7 @@
 # Mount
 #     /usr/src/app/src = /mnt/user/development/patisserie/src/
 #     /usr/src/app/db = /mnt/user/appdata/patisserie/
+# In Unraid, Docker, set "Advanced" and click "force update"
 
 FROM node:latest
 

@@ -1,17 +1,16 @@
 import { TornAPI, TornInterfaces } from 'ts-torn-api';
 import EventEmitter from 'node:events';
 
-// https://www.torn.com/api.html
-// TODO missing from and to for limiting by unix timestamps
-// function tornApiCall(category: string, id: string, fields: Array<string>, key: string) {
-// 	const selections = fields.join(',');
-// 	return axios.get(`https://api.torn.com/${category}/${id}`, {
-// 		params: {
-// 			"selections": selections,
-// 			"key": key
-// 		}
-// 	});
-// }
+
+const MessageTypes = {
+  "user": {
+  },
+  "discord": {
+
+  },
+  "faction": {
+  },
+}
 
 interface UpdateRequest {
   id: number;
@@ -92,22 +91,20 @@ export class TornApiQueue {
       this.storeResult(response.ID, response, 'faction', 'ifaction');
       response.members.forEach(member => {
         this.userUpdate(parseInt(member.id), channelId);
+        this.discordUpdate(parseInt(member.id), channelId);
       });
-      // this.addToQueue(this.discordUpdateQueueEvent(response.player_id, parseInt(channelId)));
     });
-
   }
 
   private onUserDiscordUpdate({ id, channelId }: UpdateRequest) {
-    // const channel = this.client.channels.cache.get(channelId);
-    // this.tornApi.user.discord(id.toString()).then(response => {
-    // 	if (TornAPI.isError(response)) {
-    // 		console.log(response);
-    // 		return;
-    // 	} 
-    // this.storeResult(response.userID, response, 'user', 'idiscord');
-    // // 	this.storeUserDiscordData(response);
-    // });
+    const channel = this.client.channels.cache.get(channelId);
+    this.tornApi.user.discord(id.toString()).then(response => {
+    	if (TornAPI.isError(response)) {
+    		console.log(response);
+    		return;
+    	} 
+    this.storeResult(response.userID, response, 'discord', 'idiscord');
+    });
   }
 
   private isUpToDate(id: number, keyPrefix: string, propertyName: string) {
@@ -154,24 +151,7 @@ export class TornApiQueue {
       console.log(`Skipping update for ${id}`);
       this.pullFromQueue();
       return;
-    } else {
-      console.log(eventType);
     }
     this.emitter.emit(eventType, { id, channelId });
   }
-
 }
-
-/*
-
-day 0: started at night i felt so cood and couldnt warm up
-day 1 saw i had a fever about 101. id been taking advil since Thursday when i had hurt my back.
-day 2 fever up to 102.8 so i went to urgent care
-day 3: fever lower but sore throat
-day 4: fever mostly gone but sorr throat and congestion and diarhhea
-day 5: fever gone, congestion better , throat still very sore  driving water still  painful
-day 6: thurs jan 4, no fever, congestion better, throat uncomfortable but not too bad amymore. still diarrhea and cough, amd low energy.
-day 7: just a cough and congestion. throat pain is like 2/10.
-
-
-*/

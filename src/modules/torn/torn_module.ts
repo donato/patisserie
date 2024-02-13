@@ -2,6 +2,7 @@ import { TornAPI, TornInterfaces } from 'ts-torn-api';
 import { TornApiQueue } from './torn_api_queue';
 import { extractDiscordId } from '../../utils/discord-utils';
 
+// https://github.com/AnIdiotsGuide/discordjs-bot-guide/blob/master/understanding/roles.md
 
 export class TornModule {
   tornApiQueue: TornApiQueue;
@@ -14,7 +15,6 @@ export class TornModule {
     const key = `user:${playerId}`;
     return this.tornDb.get(key) || {};
   }
-
 
   verify(msg: any) {
     const [command, arg1] = msg.content.split(' ');
@@ -30,13 +30,12 @@ export class TornModule {
     msg.channel.send(JSON.stringify(json));
   }
 
-
   faction(msg: any) {
     // TODO - require admin
     const [command, arg1, arg2] = msg.content.split(' ');
     const factionId = parseInt(arg2);
     
-        // this.discordDb.delete('factions-pending');
+    // this.discordDb.delete('factions-pending');
     const factionsPending: {[key: string]: number } = this.discordDb.get('factions-pending') || {};
     const factionsLoaded = this.discordDb.get('factions-loaded') || {};
     switch (arg1) {
@@ -55,15 +54,15 @@ export class TornModule {
         } else {
           const roleId = factionsLoaded[factionId] || factionsPending[factionId];
           msg.channel.send(`Role already exists <@&${roleId}>`);
-          console.log('faction already tracked');
         }
-
-        // this.tornApiQueue.factionUpdate(factionId, msg.channelId);
+        this.tornApiQueue.factionUpdate(factionId, msg.channelId);
         return;
+
       case 'remove':
         // this.discordDb.delete('factions-pending');
         msg.channel.send('NOT IMPLEMENTED');
         return;
+
       case 'refresh':
         for (let factionId in factionsPending) {
           const roleId = factionsPending[factionId];
