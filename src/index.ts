@@ -2,7 +2,7 @@
 import {Client, Intents} from 'discord.js'; //import discord.js
 // import {loadJson} from './utils/file-utils';
 const {onMessage} = require('./bot/message-handler');
-import {TornApiUtils} from './utils/torn_api_utils';
+import {TornModule} from './modules/torn/torn_module';
 const JSONdb = require('simple-json-db');
 // import {createClient} from 'redis';
 
@@ -24,15 +24,15 @@ require('dotenv').config(); //initialize dotenv
 
 
 let tornDb = new JSONdb('/usr/appdata/patisserie/torn-data.json');
+let discordDb = new JSONdb('/usr/appdata/patisserie/discord-data.json');
 
 // https://discord.js.org/#/docs/discord.js/stable/class/GuildChannel?scrollTo=name
 const client = new Client({
   intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES] });
-const tornApiUtils = new TornApiUtils(client, tornDb);
-setInterval(() => tornApiUtils.pullFromQueue(), 5000);
+const tornModule = new TornModule(client, tornDb, discordDb);
 
 client.on('message', (msg:any) => {
-  onMessage(client, tornDb, tornApiUtils, msg);
+  onMessage(client, tornModule, msg);
 });
 
 client.on('ready', () => {

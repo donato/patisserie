@@ -29,7 +29,7 @@
     "pubsub-js": "^1.9.4",
     "redis": "^4.6.10",
     "simple-json-db": "^2.0.0",
-    "ts-torn-api": "^0.1.58"
+    "ts-torn-api": "^0.1.61"
   },
   "directories": {
     "doc": "docs"

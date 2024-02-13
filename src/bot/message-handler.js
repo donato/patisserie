@@ -1,6 +1,6 @@
 const {limitedEvaluate} = require('../bot/bot-math');
 const {Format, renderZodiac, renderHelp, renderStats} = require('../utils/rendering');
-const {bakeryStats, giftPastry} = require('../bot/bakery');
+const {bakeryStats, giftPastry} = require('../modules/bakery/bakery');
 const {extractDiscordId, getChannel} = require('../utils/discord-utils');
 const JSONdb = require('simple-json-db');
 const PubSub = require('pubsub-js');
@@ -12,7 +12,7 @@ const ADMIN_SERVERS = ['906362118914330694'];
 const PATTIES_ID = '<@!957473918887792700>';
 
 
-function onMessage(client, tornDb, tornApiUtils, msg) {
+function onMessage(client, tornModule, msg) {
   const text = msg.content;
   const isAdmin = ADMIN_SERVERS.indexOf(msg.guildId) !== -1;
   const [command, arg1, arg2] = text.split(" ");
@@ -41,20 +41,23 @@ function onMessage(client, tornDb, tornApiUtils, msg) {
   }
 
   if (command == '!api-key') {
-    const apiKeys = tornDb.get('torn_api_keys') || {};
-    apiKeys.list = apiKeys.list || [];
-    apiKeys.list.push(arg1);
-    apiKeys.user_ids = apiKeys.user_ids || [];
-    apiKeys.user_ids.push(msg.author.id);
-    tornDb.set('torn_api_keys', apiKeys);
-    msg.channel.send(`API Key added`);
+    tornModule.apiKey(msg);
     return;
   }
 
   if (command == '!verify') {
-    const id = extractDiscordId(arg1) || msg.author.id;
-    msg.channel.send(`Verifying ${id}...`);
-    tornApiUtils.addToQueue(tornApiUtils.verifyQueueEvent(id, msg.channelId));
+    tornModule.verify(msg);
+    return;
+  }
+
+  if (command == '!lookup') {
+    tornModule.lookup(msg);
+    return;
+  }
+
+  if (command == '!faction') {
+    tornModule.faction(msg);
+    return;
   }
 
   if (command == '!serverinfo') {
@@ -63,11 +66,14 @@ function onMessage(client, tornDb, tornApiUtils, msg) {
     msg.channel.send(`Server mode is: \`${mode}\``);
     return;
   }
+
+  // Epic 7
   if (command == '!speed') {
     msg.channel.send(`<https://epic7x.com/speed-cheat-sheet/>`);
     return;
   }
 
+  // Bakery
   if (command === '!bake' || command === '!gift') {
     const splits = text.split(' ');
     const names = splits.slice(1);

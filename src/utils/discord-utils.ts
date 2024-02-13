@@ -1,12 +1,12 @@
 
-function getChannel(channels, name) {
-  return channels.find(channel => {
+export function getChannel(channels: any, name: string) {
+  return channels.find((channel: any) => {
     return channel.name.indexOf(name) !== -1;
   });
 }
 
 
-function extractDiscordId(text) {
+export function extractDiscordId(text: string) {
   if (text == null) {
     return false;
   }
@@ -17,8 +17,3 @@ function extractDiscordId(text) {
   }
   return matches[1];
 }
-
-module.exports = {
-  extractDiscordId,
-  getChannel
-};

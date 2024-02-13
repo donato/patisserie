@@ -1,6 +1,6 @@
-const {chooseOne, toUpperCamelCase} = require('../utils/utils');
-const {Format} = require('../utils/rendering');
-const Distribution = require('../utils/distribution');
+const {chooseOne, toUpperCamelCase} = require('../../utils/utils');
+const {Format} = require('../../utils/rendering');
+const Distribution = require('../../utils/distribution');
 
 const PASTRY_RARITY = {
   'common': 0.5,
