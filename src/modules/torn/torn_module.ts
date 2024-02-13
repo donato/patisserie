@@ -64,6 +64,7 @@ export class TornModule {
         return;
 
       case 'refresh':
+        // Update factions that were in the pending state (role created but no faction info)
         for (let factionId in factionsPending) {
           const roleId = factionsPending[factionId];
           const factionInfo = this.tornDb.get(`faction:${factionId}`);
@@ -76,6 +77,33 @@ export class TornModule {
         }
         this.discordDb.set('factions-pending', factionsPending);
         this.discordDb.set('factions-loaded', factionsLoaded);
+        // Update users for the loaded factions
+        for (let factionId in factionsLoaded) {
+          const roleId = factionsLoaded[factionId];
+          const role = msg.guild.roles.cache.get(roleId);
+
+          const factionInfo = this.tornDb.get(`faction:${factionId}`);
+          const members = factionInfo.ifaction.members;
+          for (let member of members) {
+            const discordInfo = this.tornDb.get(`discord:${member.id}`);
+            if (discordInfo) {
+              console.log(discordInfo);
+              const discordId = discordInfo.idiscord.discordID;
+              // TODO - this needs a queue
+              const member = msg.guild.members.cache.get(discordId);
+              if (!member) {
+                console.log('member not found ${discordId}');
+              } else {
+                if (member.roles.cache.get(role.id)) {
+                  console.log('already has role');
+                } else {
+                  console.log('adding role for member');
+                  member.roles.add(role).catch(console.error);
+                }
+              }
+            }
+          }
+        }
         return;
 
       default:
