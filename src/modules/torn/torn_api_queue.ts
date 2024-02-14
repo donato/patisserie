@@ -1,6 +1,7 @@
 import { TornAPI, TornInterfaces } from 'ts-torn-api';
 import EventEmitter from 'node:events';
 import { ConsumerInterface, LocalConsumerImpl, LocalStreamImpl, StreamInterface } from './queue';
+import JSONdb from 'simple-json-db';
 
 
 // type UpdateType = 'user'|'faction'|'discord'|'territory_war'|'chain';
@@ -34,7 +35,7 @@ export class TornApiQueue {
   stream: StreamInterface;
   consumer: ConsumerInterface;
 
-  constructor(readonly client: any, readonly tornDb: any, readonly discordDb: any, public readonly updateEmitter = new EventEmitter(), readonly queue: Array<string> = [], readonly emitter: EventEmitter = new EventEmitter()) {
+  constructor(readonly client: any, readonly tornDb: JSONdb, public readonly updateEmitter = new EventEmitter(), readonly queue: Array<string> = [], readonly emitter: EventEmitter = new EventEmitter()) {
     this.tornApi = new TornAPI(this.getApiKey());
     this.tornApi.setComment("Scrattch-Brick");
 
@@ -51,7 +52,7 @@ export class TornApiQueue {
   }
 
   update(type: UpdateType, id: number) {
-    this.stream.add('torn', { type: UpdateType, id });
+    this.stream.add('torn', { type, id });
   }
 
   private getApiKey() {
@@ -97,9 +98,13 @@ export class TornApiQueue {
 
   private isUpToDate(type: UpdateType, id: number) {
     const key = `${type}:${id}`;
-    const lastUpdateKey = `last_update`;
     const json = this.tornDb.get(key);
+    return this.isCached(type, json);
+  }
+
+  isCached(type: UpdateType, json: any) {
     if (!json) { return false; }
+    const lastUpdateKey = `last_update`;
     const lastUpdate = json[lastUpdateKey]
     const msElapsed = Date.now() - lastUpdate;
     // console.log(`Last update ${lastUpdate}, now ${Date.now()}, difference ${msElapsed}`);
@@ -122,7 +127,7 @@ export class TornApiQueue {
     if (!event) { return; }
 
     const { type, id } = event;
-    if (this.isUpToDate(type, parseInt(id.toString()))) {
+    if (this.isUpToDate(type, id)) {
       console.log(`Skipping update for ${type}:${id}`);
       this.pullFromQueue();
       return;

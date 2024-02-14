@@ -1,54 +1,46 @@
 import { TornAPI, TornInterfaces } from 'ts-torn-api';
-import { TornApiQueue, UpdateType } from './torn_api_queue';
+import { UpdateType } from './torn_api_queue';
+import { TornCache } from './torn_cache';
 import { extractDiscordId } from '../../utils/discord-utils';
-import { IFaction } from 'ts-torn-api/dist/Interfaces';
+import { IDiscord, IFaction } from 'ts-torn-api/dist/Interfaces';
+import JSONdb from 'simple-json-db';
 
 // https://github.com/AnIdiotsGuide/discordjs-bot-guide/blob/master/understanding/roles.md
 
 export class TornModule {
-  tornApiQueue: TornApiQueue;
-
-  constructor(readonly client: any, readonly tornDb: any, readonly discordDb: any) {
-    this.tornApiQueue = new TornApiQueue(client, tornDb, discordDb);
+  constructor(readonly client: any, readonly tornCache: TornCache, readonly discordDb: JSONdb) {
   }
 
-  private getUserData(playerId: string) {
-    const key = `user:${playerId}`;
-    return this.tornDb.get(key) || {};
-  }
 
-  verify(msg: any) {
+  async verify(msg: any) {
     const [command, arg1] = msg.content.split(' ');
     const discordId = extractDiscordId(arg1) || msg.author.id;
     msg.channel.send(`Verifying <@!${discordId}>`);
-    this.tornApiQueue.updateEmitter.once(`discord:${discordId}`, (result) => {
-      if (TornAPI.isError(result)) {
-        msg.channel.send("Torn API Error: " + result.error);
-        return;
-      }
-      // TODO update user roles & permissions
-      const tornId = result.userID;;
-      msg.channel.send(`Torn account found [${tornId}]`);
-      this.tornApiQueue.updateEmitter.once(`user:${tornId}`, (userdata) => {
-        if (TornAPI.isError(userdata)) {
-          msg.channel.send("Torn API Error: " + userdata.error);
-          return;
-        }
-        msg.channel.send(`${userdata.name}[${tornId}] has been verified!`);
-      });
-      this.tornApiQueue.update(UpdateType.User, tornId);
-    });
-    this.tornApiQueue.update(UpdateType.Discord, discordId);
+    const result:IDiscord = await this.tornCache.get(UpdateType.Discord, discordId);
+    if (TornAPI.isError(result)) {
+      msg.channel.send("Torn API Error: " + result.error);
+      return;
+    }
+    console.log(result);
+    // TODO update user roles & permissions
+    const tornId = result.userID;;
+    msg.channel.send(`Torn account found [${tornId}]`);
+    const userdata = await this.tornCache.get(UpdateType.User, tornId);
+    if (TornAPI.isError(userdata)) {
+      msg.channel.send("Torn API Error: " + userdata.error);
+      return;
+    }
+    msg.channel.send(`${userdata.name}[${tornId}] has been verified!`);
   }
 
-  lookup(msg: any) {
-    const [command, arg1] = msg.content.split(' ');
-    const json = this.getUserData(arg1);
+  async lookup(msg: any) {
+    const [command, playerId] = msg.content.split(' ');
+    const json = await this.tornCache.get(UpdateType.User, playerId);
     console.log(json);
     msg.channel.send(JSON.stringify(json));
   }
 
-  faction(msg: any) {
+  async faction(msg: any) {
     // TODO - require admin
     const [command, arg1, arg2] = msg.content.split(' ');
     const factionId = parseInt(arg2);
@@ -72,7 +64,7 @@ export class TornModule {
           const roleId = factionsLoaded[factionId] || factionsPending[factionId];
           msg.channel.send(`Role already exists <@&${roleId}>`);
         }
-        this.tornApiQueue.update(UpdateType.Faction, factionId);
+        this.tornCache.refresh(UpdateType.Faction, factionId);
         return;
 
       case 'remove':
@@ -95,25 +87,25 @@ export class TornModule {
     }
   }
 
-  apiKey(msg: any) {
-    // TODO - allow deleting key
-    const [command, arg1] = msg.content.split(' ');
-    const apiKeys = this.tornDb.get('torn_api_keys') || {};
-    apiKeys.list = apiKeys.list || [];
-    apiKeys.list.push(arg1);
-    apiKeys.user_ids = apiKeys.user_ids || [];
-    apiKeys.user_ids.push(msg.author.id);
-    this.tornDb.set('torn_api_keys', apiKeys);
-    msg.channel.send(`API Key added`);
-  }
+  // apiKey(msg: any) {
+  //   // TODO - allow deleting key
+  //   const [command, arg1] = msg.content.split(' ');
+  //   const apiKeys = this.tornDb.get('torn_api_keys') || {};
+  //   apiKeys.list = apiKeys.list || [];
+  //   apiKeys.list.push(arg1);
+  //   apiKeys.user_ids = apiKeys.user_ids || [];
+  //   apiKeys.user_ids.push(msg.author.id);
+  //   this.tornDb.set('torn_api_keys', apiKeys);
+  //   msg.channel.send(`API Key added`);
+  // }
 
-  private updatePendingFactions(msg: any) {
+  private async updatePendingFactions(msg: any) {
     const factionsPending: { [key: string]: number } = this.discordDb.get('factions-pending') || {};
     const factionsLoaded = this.discordDb.get('factions-loaded') || {};
     // Update factions that were in the pending state (role created but no faction info)
     for (let factionId in factionsPending) {
       const roleId = factionsPending[factionId];
-      const factionInfo = this.tornDb.get(`faction:${factionId}`);
+      const factionInfo = await this.tornCache.get(UpdateType.Faction, parseInt(factionId));
       if (factionInfo) {
         msg.guild.roles.cache.get(roleId).setName(factionInfo.raw.name);
         msg.channel.send(`Role updated <@&${roleId}>`);
@@ -125,30 +117,28 @@ export class TornModule {
     this.discordDb.set('factions-loaded', factionsLoaded);
   }
 
-  private updateLoadedFactions(msg: any) {
+  private async updateLoadedFactions(msg: any) {
     const factionsLoaded = this.discordDb.get('factions-loaded') || {};
     for (let factionId in factionsLoaded) {
       const roleId = factionsLoaded[factionId];
-      this.tornApiQueue.update(UpdateType.Faction, parseInt(factionId));
-      this.tornApiQueue.updateEmitter.once(`faction:${factionId}`, (result: IFaction) => {
-        this.updateFactionMembers(result);
-        this.setDiscordRolesForUsers(result, roleId, msg);
-      });
+      const result: IFaction = await this.tornCache.get(UpdateType.Faction, parseInt(factionId));
+      this.updateFactionMembers(result);
+      this.setDiscordRolesForUsers(result, roleId, msg);
     }
   }
 
   updateFactionMembers(response: IFaction) {
     response.members.forEach(member => {
-      this.tornApiQueue.update(UpdateType.User, parseInt(member.id));
-      this.tornApiQueue.update(UpdateType.Discord, parseInt(member.id));
+      this.tornCache.refresh(UpdateType.User, parseInt(member.id));
+      this.tornCache.refresh(UpdateType.Discord, parseInt(member.id));
     });
   }
 
-  setDiscordRolesForUsers(result: IFaction, roleId: any, msg: any) {
+  async setDiscordRolesForUsers(result: IFaction, roleId: any, msg: any) {
     const role = msg.guild.roles.cache.get(roleId);
 
     for (let member of result.members) {
-      const discordInfo = this.tornDb.get(`discord:${member.id}`);
+      const discordInfo = await this.tornCache.get(UpdateType.Discord, parseInt(member.id));
       if (discordInfo) {
         const discordId = discordInfo.raw?.discordID;
         // todo - guild.members.cache is unreliable, use fetch

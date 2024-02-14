@@ -7,7 +7,8 @@
 - queue to store ratelimit info and backoff for api fail
 - rewrite queue model to match redis streams https://redis.io/docs/data-types/streams/
 - add prioritization to queue
-- encapsulate tornDb and ApiQueue into one thing that you can 'get' and return a promise
+- create api cache that encapsulates tornDb and ApiQueue
+  + move non cache items (like api keys) out of tornDb
 - make list of tornapi keys 
   + remove them if failing/revoked
   + Store key access level
