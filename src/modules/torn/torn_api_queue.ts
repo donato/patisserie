@@ -1,37 +1,42 @@
 import { TornAPI, TornInterfaces } from 'ts-torn-api';
 import EventEmitter from 'node:events';
+import { ConsumerInterface, LocalConsumerImpl, LocalStreamImpl, StreamInterface } from './queue';
 
-
-const MessageTypes = {
-  "user": {
-  },
-  "discord": {
-
-  },
-  "faction": {
-  },
-}
 
 interface UpdateRequest {
+  type: string;
   id: number;
-  channelId: number;
 }
 
 export class TornApiQueue {
   tornApi: TornAPI;
+  stream: StreamInterface;
+  consumer: ConsumerInterface;
 
-  constructor(readonly client: any, readonly tornDb: any, readonly discordDb: any, readonly queue: Array<string> = [], readonly emitter: EventEmitter = new EventEmitter()) {
+  constructor(readonly client: any, readonly tornDb: any, readonly discordDb: any, public readonly updateEmitter = new EventEmitter(), readonly queue: Array<string> = [], readonly emitter: EventEmitter = new EventEmitter()) {
     this.tornApi = new TornAPI(this.getApiKey());
     this.tornApi.setComment("Scrattch-Brick");
 
+    this.stream = new LocalStreamImpl();
+    this.consumer = new LocalConsumerImpl(this.stream);
+
     // consider passing a one-time use tornApi instance
     this.emitter
-      .on('verify-user', (o) => this.onUserVerify(o))
-      .on('user-discord-update', (o) => this.onUserDiscordUpdate(o))
-      .on('faction-update', (o) => this.onFactionUpdate(o))
-      .on('user-update', (o) => this.onUserUpdate(o));
+      .on('discord', (o) => this.onUserDiscordUpdate(o))
+      .on('faction', (o) => this.onFactionUpdate(o))
+      .on('user', (o) => this.onUserUpdate(o));
 
     setInterval(() => this.pullFromQueue(), 5000);
+  }
+
+  userUpdate(id: number) {
+    this.stream.add('torn', {type: 'user', id});
+  }
+  discordUpdate(id: number) {
+    this.stream.add('torn', {type: 'discord', id});
+  }
+  factionUpdate(id: number) {
+    this.stream.add('torn', {type: 'faction', id});
   }
 
 
@@ -40,76 +45,47 @@ export class TornApiQueue {
     return apiKeys.list[0];
   }
 
-  verify(id: number, channelId: number) {
-    this.addToQueue(`verify-user:${id}:${channelId}`);
-  }
-  userUpdate(id: number, channelId: number) {
-    this.addToQueue(`user-update:${id}:${channelId}`);
-  }
-  discordUpdate(id: number, channelId: number) {
-    this.addToQueue(`user-discord-update:${id}:${channelId}`);
-  }
-  factionUpdate(factionId: number, channelId: number) {
-    this.addToQueue(`faction-update:${factionId}:${channelId}`);
-  }
-
-  private onUserUpdate({ id, channelId }: UpdateRequest) {
+  private onUserUpdate({id}: UpdateRequest) {
     this.tornApi.user.user(id.toString())
       .then(response => {
         if (TornAPI.isError(response)) {
           return;
         }
-        this.storeResult(response.player_id, response, 'user', 'iuser');
+        this.storeResult('user', response.player_id, response);
       });
   }
 
-  private onUserVerify({ id, channelId }: UpdateRequest) {
-    const channel = this.client.channels.cache.get(channelId);
-
-    this.tornApi.user.user(id.toString())
-      .then(response => {
-        if (TornAPI.isError(response)) {
-          channel.send("Torn API Error: " + response.error);
-          return;
-        }
-
-        this.storeResult(response.player_id, response, 'user', 'iuser');
-        // TODO update user roles & permissions
-        channel.send(`${response.name}[${response.player_id}] has been verified!`);
-        this.discordUpdate(response.player_id, channelId);
-      });
-  }
-
-  private onFactionUpdate({ id, channelId }: UpdateRequest) {
-    const channel = this.client.channels.cache.get(channelId);
+  private onFactionUpdate({id}: UpdateRequest) {
     this.tornApi.faction.faction(id.toString()).then(response => {
       if (TornAPI.isError(response)) {
-        channel.send("Torn API Error: " + response.error);
+        // channel.send("Torn API Error: " + response.error);
         return;
       }
 
-      this.storeResult(response.ID, response, 'faction', 'ifaction');
+      this.storeResult('faction', response.ID, response);
       response.members.forEach(member => {
-        this.userUpdate(parseInt(member.id), channelId);
-        this.discordUpdate(parseInt(member.id), channelId);
+        this.userUpdate(parseInt(member.id));
+        this.discordUpdate(parseInt(member.id));
       });
     });
   }
 
-  private onUserDiscordUpdate({ id, channelId }: UpdateRequest) {
-    const channel = this.client.channels.cache.get(channelId);
+  private onUserDiscordUpdate({id}: UpdateRequest) {
     this.tornApi.user.discord(id.toString()).then(response => {
     	if (TornAPI.isError(response)) {
     		console.log(response);
+        // todo error handling
+        // this.updateEmitter.emit(`discord:${key}`, 'error...');
     		return;
     	} 
-    this.storeResult(response.userID, response, 'discord', 'idiscord');
+      this.storeResult('discord', parseInt(response.discordID), response);
+      this.storeResult('discord', response.userID, response);
     });
   }
 
-  private isUpToDate(id: number, keyPrefix: string, propertyName: string) {
-    const key = `${keyPrefix}:${id}`;
-    const lastUpdateKey = `${propertyName}_last_update`;
+  private isUpToDate(type: string, id: number) {
+    const key = `${type}:${id}`;
+    const lastUpdateKey = `last_update`;
     const json = this.tornDb.get(key);
     if (!json) { return false; }
     const lastUpdate = json[lastUpdateKey]
@@ -119,39 +95,28 @@ export class TornApiQueue {
     return msElapsed < 24 * oneHourInMs;
   }
 
-  private storeResult(id: number, result: any, keyPrefix: string, propertyName: string) {
-    const key = `${keyPrefix}:${id}`;
-    const json = this.tornDb.get(key) || {};
-
-    Object.assign(json, {
-      [`${propertyName}`]: result,
-      [`${propertyName}_last_update`]: Date.now()
-    });
+  private storeResult(type: string, id: number, result: any) {
+    const key = `${type}:${id}`;
+    const json = {
+      "raw": result,
+      "last_update": Date.now()
+    };
     this.tornDb.set(key, json);
+    this.updateEmitter.emit(key);
     return result;
   }
 
-  // todo: use redis for queue
-  private addToQueue(event: string) {
-    console.log(`Adding to queue ${event}`);
-    this.queue.push(event);
-  }
-
-  pullFromQueue() {
-    if (this.queue.length < 1) {
-      return;
-    }
-    // TODO - move to temp until finished to prevent loss
-    const event = this.queue.pop();
+  private pullFromQueue() {
+    const event = this.consumer.read('torn') as UpdateRequest | null;
     if (!event) { return; }
-    console.log(`Pulled from queue ${event}`);
 
-    const [eventType, id, channelId] = event?.split(':');
-    if (eventType == 'user-update' && this.isUpToDate(parseInt(id.toString()), 'user', 'iuser')) {
-      console.log(`Skipping update for ${id}`);
+    const {type, id} = event;
+    if (this.isUpToDate(type, parseInt(id.toString()))) {
+      console.log(`Skipping update for ${type}:${id}`);
       this.pullFromQueue();
       return;
     }
-    this.emitter.emit(eventType, { id, channelId });
+    console.log(`Handling queue event ${type}:${id}`);
+    this.emitter.emit(type, { id});
   }
 }
