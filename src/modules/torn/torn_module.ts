@@ -20,20 +20,22 @@ export class TornModule {
     const [command, arg1] = msg.content.split(' ');
     const discordId = extractDiscordId(arg1) || msg.author.id;
     msg.channel.send(`Verifying <@!${discordId}>`);
-    this.tornApiQueue.updateEmitter.once(`discord:${discordId}`, () => {
-        // if (TornAPI.isError(response)) {
-        //   channel.send("Torn API Error: " + response.error);
-        //   return;
-        // }
-        // TODO update user roles & permissions
-        const discordData = this.tornDb.get(`discord:${discordId}`);
-        const tornId = discordData.raw.userID;;
-        msg.channel.send(`Torn account found [${tornId}]`);
-        this.tornApiQueue.updateEmitter.once(`user:${tornId}`, () => {
-          const userData = this.tornDb.get(`user:${tornId}`);
-          msg.channel.send(`${userData.raw.name}[${tornId}] has been verified!`);
-        });
-        this.tornApiQueue.userUpdate(tornId);
+    this.tornApiQueue.updateEmitter.once(`discord:${discordId}`, (result) => {
+      if (TornAPI.isError(result)) {
+        msg.channel.send("Torn API Error: " + result.error);
+        return;
+      }
+      // TODO update user roles & permissions
+      const tornId = result.userID;;
+      msg.channel.send(`Torn account found [${tornId}]`);
+      this.tornApiQueue.updateEmitter.once(`user:${tornId}`, (userdata) => {
+        if (TornAPI.isError(userdata)) {
+          msg.channel.send("Torn API Error: " + userdata.error);
+          return;
+        }
+        msg.channel.send(`${userdata.name}[${tornId}] has been verified!`);
+      });
+      this.tornApiQueue.userUpdate(tornId);
     });
     this.tornApiQueue.discordUpdate(discordId);
   }
@@ -49,10 +51,10 @@ export class TornModule {
     // TODO - require admin
     const [command, arg1, arg2] = msg.content.split(' ');
     const factionId = parseInt(arg2);
-    
+
     // this.discordDb.delete('factions-pending');
     // this.discordDb.delete('factions-loaded');
-    const factionsPending: {[key: string]: number } = this.discordDb.get('factions-pending') || {};
+    const factionsPending: { [key: string]: number } = this.discordDb.get('factions-pending') || {};
     const factionsLoaded = this.discordDb.get('factions-loaded') || {};
     switch (arg1) {
       case 'add':
@@ -80,55 +82,8 @@ export class TornModule {
         return;
 
       case 'refresh':
-        for (let factionId in factionsLoaded) {
-          this.tornApiQueue.factionUpdate(parseInt(factionId));
-        }
-        return;
-
-      case 'other?':
-        // Update factions that were in the pending state (role created but no faction info)
-        for (let factionId in factionsPending) {
-          const roleId = factionsPending[factionId];
-          const factionInfo = this.tornDb.get(`faction:${factionId}`);
-          if (factionInfo) {
-            msg.guild.roles.cache.get(roleId).setName(factionInfo.raw.name);
-            msg.channel.send(`Role updated <@&${roleId}>`);
-            factionsLoaded[factionId] = factionsPending[factionId];
-            delete factionsPending[factionId];
-          }
-        }
-        this.discordDb.set('factions-pending', factionsPending);
-        this.discordDb.set('factions-loaded', factionsLoaded);
-        // Update users for the loaded factions
-        for (let factionId in factionsLoaded) {
-          const roleId = factionsLoaded[factionId];
-          const role = msg.guild.roles.cache.get(roleId);
-
-          const factionInfo = this.tornDb.get(`faction:${factionId}`);
-          const members = factionInfo.raw?.members;
-          for (let member of members) {
-            // kinda unsure how to do this, since the discord info is keyed by discord id
-            // not by torn id
-
-            // const discordInfo = this.tornDb.get(`discord:${member.id}`);
-            // if (discordInfo) {
-            //   console.log(discordInfo);
-            //   const discordId = discordInfo.raw?.discordID;
-            //   // TODO - this needs a queue
-            //   const member = msg.guild.members.cache.get(discordId);
-            //   if (!member) {
-            //     console.log('member not found ${discordId}');
-            //   } else {
-            //     if (member.roles.cache.get(role.id)) {
-            //       console.log('already has role');
-            //     } else {
-            //       console.log('adding role for member');
-            //       member.roles.add(role).catch(console.error);
-            //     }
-            //   }
-            // }
-          }
-        }
+        this.updatePendingFactions(msg);
+        this.updateLoadedFactions(msg);
         return;
 
       default:
@@ -148,5 +103,53 @@ export class TornModule {
     apiKeys.user_ids.push(msg.author.id);
     this.tornDb.set('torn_api_keys', apiKeys);
     msg.channel.send(`API Key added`);
+  }
+
+  updatePendingFactions(msg: any) {
+    const factionsPending: { [key: string]: number } = this.discordDb.get('factions-pending') || {};
+    const factionsLoaded = this.discordDb.get('factions-loaded') || {};
+    // Update factions that were in the pending state (role created but no faction info)
+    for (let factionId in factionsPending) {
+      const roleId = factionsPending[factionId];
+      const factionInfo = this.tornDb.get(`faction:${factionId}`);
+      if (factionInfo) {
+        msg.guild.roles.cache.get(roleId).setName(factionInfo.raw.name);
+        msg.channel.send(`Role updated <@&${roleId}>`);
+        factionsLoaded[factionId] = factionsPending[factionId];
+        delete factionsPending[factionId];
+      }
+    }
+    this.discordDb.set('factions-pending', factionsPending);
+    this.discordDb.set('factions-loaded', factionsLoaded);
+  }
+
+  updateLoadedFactions(msg: any) {
+    const factionsLoaded = this.discordDb.get('factions-loaded') || {};
+    for (let factionId in factionsLoaded) {
+      this.tornApiQueue.factionUpdate(parseInt(factionId));
+      const roleId = factionsLoaded[factionId];
+      const role = msg.guild.roles.cache.get(roleId);
+
+      const factionInfo = this.tornDb.get(`faction:${factionId}`);
+      const members = factionInfo.raw?.members;
+      for (let member of members) {
+        const discordInfo = this.tornDb.get(`discord:${member.id}`);
+        if (discordInfo) {
+          const discordId = discordInfo.raw?.discordID;
+          // TODO - this needs a queue
+          const member = msg.guild.members.cache.get(discordId);
+          if (!member) {
+            console.log('member not found ${discordId}');
+          } else {
+            if (member.roles.cache.get(role.id)) {
+              console.log('already has role');
+            } else {
+              console.log('adding role for member');
+              member.roles.add(role).catch(console.error);
+            }
+          }
+        }
+      }
+    }
   }
 }

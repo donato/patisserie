@@ -4,9 +4,18 @@ import { ConsumerInterface, LocalConsumerImpl, LocalStreamImpl, StreamInterface 
 
 
 interface UpdateRequest {
-  type: string;
+  type: UpdateType;
   id: number;
 }
+
+type UpdateType = 'user'|'faction'|'discord';
+
+const ONE_HOUR_IN_MS = 1000 * 60 * 60;
+const UPDATE_TIME_REQUIRED_MS = {
+  'user': ONE_HOUR_IN_MS * 6,
+  'faction': ONE_HOUR_IN_MS * 24,
+  'discord': ONE_HOUR_IN_MS * 24 * 30,
+};
 
 export class TornApiQueue {
   tornApi: TornAPI;
@@ -39,7 +48,6 @@ export class TornApiQueue {
     this.stream.add('torn', {type: 'faction', id});
   }
 
-
   private getApiKey() {
     const apiKeys: { list: Array<string>, user_ids: Array<string> } = this.tornDb.get('torn_api_keys');
     return apiKeys.list[0];
@@ -49,6 +57,8 @@ export class TornApiQueue {
     this.tornApi.user.user(id.toString())
       .then(response => {
         if (TornAPI.isError(response)) {
+          this.updateEmitter.emit(`user:${id}`, response)
+          console.log(response);
           return;
         }
         this.storeResult('user', response.player_id, response);
@@ -58,7 +68,8 @@ export class TornApiQueue {
   private onFactionUpdate({id}: UpdateRequest) {
     this.tornApi.faction.faction(id.toString()).then(response => {
       if (TornAPI.isError(response)) {
-        // channel.send("Torn API Error: " + response.error);
+        this.updateEmitter.emit(`faction:${id}`, response)
+    		console.log(response);
         return;
       }
 
@@ -73,9 +84,8 @@ export class TornApiQueue {
   private onUserDiscordUpdate({id}: UpdateRequest) {
     this.tornApi.user.discord(id.toString()).then(response => {
     	if (TornAPI.isError(response)) {
+        this.updateEmitter.emit(`discord:${id}`, response)
     		console.log(response);
-        // todo error handling
-        // this.updateEmitter.emit(`discord:${key}`, 'error...');
     		return;
     	} 
       this.storeResult('discord', parseInt(response.discordID), response);
@@ -83,7 +93,7 @@ export class TornApiQueue {
     });
   }
 
-  private isUpToDate(type: string, id: number) {
+  private isUpToDate(type: UpdateType, id: number) {
     const key = `${type}:${id}`;
     const lastUpdateKey = `last_update`;
     const json = this.tornDb.get(key);
@@ -91,8 +101,7 @@ export class TornApiQueue {
     const lastUpdate = json[lastUpdateKey]
     const msElapsed = Date.now() - lastUpdate;
     // console.log(`Last update ${lastUpdate}, now ${Date.now()}, difference ${msElapsed}`);
-    const oneHourInMs = 1000 * 60 * 60;
-    return msElapsed < 24 * oneHourInMs;
+    return msElapsed < UPDATE_TIME_REQUIRED_MS[type];
   }
 
   private storeResult(type: string, id: number, result: any) {
@@ -102,7 +111,7 @@ export class TornApiQueue {
       "last_update": Date.now()
     };
     this.tornDb.set(key, json);
-    this.updateEmitter.emit(key);
+    this.updateEmitter.emit(key, result);
     return result;
   }
 
