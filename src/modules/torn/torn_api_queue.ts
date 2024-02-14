@@ -3,18 +3,30 @@ import EventEmitter from 'node:events';
 import { ConsumerInterface, LocalConsumerImpl, LocalStreamImpl, StreamInterface } from './queue';
 
 
+// type UpdateType = 'user'|'faction'|'discord'|'territory_war'|'chain';
+
+export enum UpdateType {
+  User = "user",
+  Faction = "faction",
+  Discord = "discord",
+  Chain = "chain",
+  TerritoryWar = "territory_war",
+}
+
 interface UpdateRequest {
   type: UpdateType;
   id: number;
 }
 
-type UpdateType = 'user'|'faction'|'discord';
 
+const ONE_MINUTE_IN_MS = 1000 * 60;
 const ONE_HOUR_IN_MS = 1000 * 60 * 60;
 const UPDATE_TIME_REQUIRED_MS = {
-  'user': ONE_HOUR_IN_MS * 6,
-  'faction': ONE_HOUR_IN_MS * 24,
-  'discord': ONE_HOUR_IN_MS * 24 * 30,
+  [UpdateType.User]: ONE_HOUR_IN_MS * 6,
+  [UpdateType.Faction]: ONE_HOUR_IN_MS * 24,
+  [UpdateType.Discord]: ONE_HOUR_IN_MS * 24 * 30,
+  [UpdateType.Chain]: ONE_MINUTE_IN_MS * 1,
+  [UpdateType.TerritoryWar]: ONE_MINUTE_IN_MS * 5,
 };
 
 export class TornApiQueue {
@@ -38,14 +50,8 @@ export class TornApiQueue {
     setInterval(() => this.pullFromQueue(), 5000);
   }
 
-  userUpdate(id: number) {
-    this.stream.add('torn', {type: 'user', id});
-  }
-  discordUpdate(id: number) {
-    this.stream.add('torn', {type: 'discord', id});
-  }
-  factionUpdate(id: number) {
-    this.stream.add('torn', {type: 'faction', id});
+  update(type: UpdateType, id: number) {
+    this.stream.add('torn', { type: UpdateType, id });
   }
 
   private getApiKey() {
@@ -53,7 +59,7 @@ export class TornApiQueue {
     return apiKeys.list[0];
   }
 
-  private onUserUpdate({id}: UpdateRequest) {
+  private onUserUpdate({ id }: UpdateRequest) {
     this.tornApi.user.user(id.toString())
       .then(response => {
         if (TornAPI.isError(response)) {
@@ -65,29 +71,25 @@ export class TornApiQueue {
       });
   }
 
-  private onFactionUpdate({id}: UpdateRequest) {
+  private onFactionUpdate({ id }: UpdateRequest) {
     this.tornApi.faction.faction(id.toString()).then(response => {
       if (TornAPI.isError(response)) {
         this.updateEmitter.emit(`faction:${id}`, response)
-    		console.log(response);
+        console.log(response);
         return;
       }
 
       this.storeResult('faction', response.ID, response);
-      response.members.forEach(member => {
-        this.userUpdate(parseInt(member.id));
-        this.discordUpdate(parseInt(member.id));
-      });
     });
   }
 
-  private onUserDiscordUpdate({id}: UpdateRequest) {
+  private onUserDiscordUpdate({ id }: UpdateRequest) {
     this.tornApi.user.discord(id.toString()).then(response => {
-    	if (TornAPI.isError(response)) {
+      if (TornAPI.isError(response)) {
         this.updateEmitter.emit(`discord:${id}`, response)
-    		console.log(response);
-    		return;
-    	} 
+        console.log(response);
+        return;
+      }
       this.storeResult('discord', parseInt(response.discordID), response);
       this.storeResult('discord', response.userID, response);
     });
@@ -119,13 +121,13 @@ export class TornApiQueue {
     const event = this.consumer.read('torn') as UpdateRequest | null;
     if (!event) { return; }
 
-    const {type, id} = event;
+    const { type, id } = event;
     if (this.isUpToDate(type, parseInt(id.toString()))) {
       console.log(`Skipping update for ${type}:${id}`);
       this.pullFromQueue();
       return;
     }
     console.log(`Handling queue event ${type}:${id}`);
-    this.emitter.emit(type, { id});
+    this.emitter.emit(type, { id });
   }
 }
