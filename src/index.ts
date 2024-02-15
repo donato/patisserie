@@ -3,8 +3,6 @@ import {Client, Intents} from 'discord.js'; //import discord.js
 // import {loadJson} from './utils/file-utils';
 const {onMessage} = require('./bot/message-handler');
 import {TornModule} from './modules/torn/torn_module';
-import {TornCache} from './modules/torn/torn_cache';
-import {TornApiQueue} from './modules/torn/torn_api_queue';
 const JSONdb = require('simple-json-db');
 // import {createClient} from 'redis';
 
@@ -31,9 +29,7 @@ let discordDb = new JSONdb('/usr/appdata/patisserie/discord-data.json');
 // https://discord.js.org/#/docs/discord.js/stable/class/GuildChannel?scrollTo=name
 const client = new Client({
   intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES] });
-const tornApiQueue = new TornApiQueue(client, tornDb);
-const tornCache = new TornCache(tornDb, tornApiQueue);
-const tornModule = new TornModule(client, tornCache, discordDb);
+const tornModule = new TornModule(client, tornDb, discordDb);
 
 client.on('message', (msg:any) => {
   onMessage(client, tornModule, msg);

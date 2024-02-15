@@ -1,6 +1,6 @@
 import { TornAPI, TornInterfaces } from 'ts-torn-api';
-import { UpdateType } from './torn_api_queue';
-import { TornCache } from './torn_cache';
+import {TornCache} from './torn_cache';
+import {UpdateType, TornApiQueue} from './torn_api_queue';
 import { extractDiscordId } from '../../utils/discord-utils';
 import { IDiscord, IFaction } from 'ts-torn-api/dist/Interfaces';
 import JSONdb from 'simple-json-db';
@@ -8,9 +8,21 @@ import JSONdb from 'simple-json-db';
 // https://github.com/AnIdiotsGuide/discordjs-bot-guide/blob/master/understanding/roles.md
 
 export class TornModule {
-  constructor(readonly client: any, readonly tornCache: TornCache, readonly discordDb: JSONdb) {
+  private tornCache: TornCache;
+
+  constructor(readonly client: any, readonly tornDb: JSONdb, readonly discordDb: JSONdb) {
+    const tornApiQueue = new TornApiQueue(tornDb);
+    this.tornCache = new TornCache(tornDb, tornApiQueue);
+
+    const tornApi = new TornAPI(this.getApiKey());
+    tornApi.setComment("Scrattch-Brick");
+    tornApiQueue.addTornApiKey(tornApi);
   }
 
+  private getApiKey() {
+    const apiKeys: { list: Array<string>, user_ids: Array<string> } = this.tornDb.get('torn_api_keys');
+    return apiKeys.list[0];
+  }
 
   async verify(msg: any) {
     const [command, arg1] = msg.content.split(' ');
