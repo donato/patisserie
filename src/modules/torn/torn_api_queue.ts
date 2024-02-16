@@ -9,6 +9,7 @@ export enum UpdateType {
   Discord = 'discord',
   Chain = 'chain',
   TerritoryWar = 'territory_war',
+  Api = 'api',
 }
 
 interface UpdateRequest {
@@ -16,6 +17,15 @@ interface UpdateRequest {
   id: number;
 }
 
+interface TornDbRecord {
+  raw: unknown;
+  last_update: number;
+}
+
+function isTornDbRecord(json: unknown): json is TornDbRecord {
+  return !!json && (typeof json === 'object') &&
+      json.hasOwnProperty('raw') && json.hasOwnProperty('last_update');
+}
 
 const ONE_MINUTE_IN_MS = 1000 * 60;
 const ONE_HOUR_IN_MS = 1000 * 60 * 60;
@@ -25,18 +35,19 @@ const UPDATE_TIME_REQUIRED_MS = {
   [UpdateType.Discord]: ONE_HOUR_IN_MS * 24 * 30,
   [UpdateType.Chain]: ONE_MINUTE_IN_MS * 1,
   [UpdateType.TerritoryWar]: ONE_MINUTE_IN_MS * 5,
+  [UpdateType.Api]: Number.MAX_SAFE_INTEGER,
 };
 
 export class TornApiQueue {
   stream: StreamInterface;
-  consumer: ConsumerInterface;
+  consumerGroup: ConsumerInterface;
 
   constructor(readonly tornDb: JSONdb, public readonly updateEmitter = new EventEmitter(), readonly queue: Array<string> = [], readonly emitter: EventEmitter = new EventEmitter()) {
     this.stream = new LocalStreamImpl();
-    this.consumer = new LocalConsumerImpl(this.stream);
+    this.consumerGroup = new LocalConsumerImpl(this.stream);
   }
 
-  addTornApiKey(tornApi: TornAPI, interval = 5000) {
+  async addTornApiKey(tornApi: TornAPI, interval = 5000) {
     setInterval(() => this.pullFromQueue(tornApi), interval);
   }
 
@@ -57,12 +68,15 @@ export class TornApiQueue {
       case UpdateType.Faction:
         response = await tornApi.faction.faction(id.toString());
         break;
+      case UpdateType.Api:
+        response = await tornApi.key.info();
       case UpdateType.Chain:
       case UpdateType.TerritoryWar:
       default:
         console.log('not implement');
     }
     if (!response || TornAPI.isError(response)) {
+      // TODO if error is invalid key, mark it for removal
       this.updateEmitter.emit(key, response)
       console.log(response);
       return;
@@ -77,37 +91,33 @@ export class TornApiQueue {
     return this.isCached(type, json);
   }
 
-  isCached(type: UpdateType, json: any) {
-    if (!json) { return false; }
-    const lastUpdateKey = `last_update`;
-    const lastUpdate = json[lastUpdateKey]
+  isCached(type: UpdateType, json: unknown) {
+    if (!isTornDbRecord(json)) { return false; }
+    const lastUpdate = json.last_update;
     const msElapsed = Date.now() - lastUpdate;
     // console.log(`Last update ${lastUpdate}, now ${Date.now()}, difference ${msElapsed}`);
     return msElapsed < UPDATE_TIME_REQUIRED_MS[type];
   }
 
   private storeResult(key: string, result: any) {
-    const json = {
-      'raw': result,
-      'last_update': Date.now()
+    const json:TornDbRecord = {
+      raw: result,
+      last_update: Date.now()
     };
     this.tornDb.set(key, json);
     return result;
   }
 
   private pullFromQueue(tornApi: TornAPI) {
-    const event = this.consumer.read('torn') as UpdateRequest | null;
-    if (!event) { return; }
-
-    const { type, id } = event;
     // In case it was updated after the item added to the queue
     // TODO - add a pending "LOCK" to avoid multiple consumers on the same key
-    if (this.isUpToDate(type, id)) {
-      console.log(`Skipping update for ${type}:${id}`);
-      this.pullFromQueue(tornApi);
-      return;
+    let event : UpdateRequest | null;
+    do {
+      event = this.consumerGroup.read('torn') as UpdateRequest | null;
+    } while (event != null && this.isUpToDate(event.type, event.id));
+    if (event) {
+      console.log(`Handling queue event ${event.type}:${event.id}`);
+      this.makeApiRequest(tornApi, event);
     }
-    console.log(`Handling queue event ${type}:${id}`);
-    this.makeApiRequest(tornApi, {type, id});
   }
 }

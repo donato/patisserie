@@ -40,7 +40,7 @@ function onMessage(client, tornModule, msg) {
     return;
   }
 
-  if (command == '!api-key') {
+  if (command == '!api-add') {
     tornModule.apiKey(msg);
     return;
   }

@@ -2,7 +2,7 @@ import { TornAPI, TornInterfaces } from 'ts-torn-api';
 import {TornCache} from './torn_cache';
 import {UpdateType, TornApiQueue} from './torn_api_queue';
 import { extractDiscordId } from '../../utils/discord-utils';
-import { IDiscord, IFaction } from 'ts-torn-api/dist/Interfaces';
+import { IAPIKeyInfo, IDiscord, IFaction } from 'ts-torn-api/dist/Interfaces';
 import JSONdb from 'simple-json-db';
 
 // https://github.com/AnIdiotsGuide/discordjs-bot-guide/blob/master/understanding/roles.md
@@ -14,14 +14,17 @@ export class TornModule {
     const tornApiQueue = new TornApiQueue(tornDb);
     this.tornCache = new TornCache(tornDb, tornApiQueue);
 
-    const tornApi = new TornAPI(this.getApiKey());
-    tornApi.setComment("Scrattch-Brick");
-    tornApiQueue.addTornApiKey(tornApi);
+    this.initializeApiKeys(tornApiQueue);
   }
 
-  private getApiKey() {
-    const apiKeys: { list: Array<string>, user_ids: Array<string> } = this.tornDb.get('torn_api_keys');
-    return apiKeys.list[0];
+  private initializeApiKeys(tornApiQueue: TornApiQueue) {
+    const apiKeys: string[] = this.discordDb.get('torn_api_keys');
+    for (let key of apiKeys) {
+      console.log(`Creating Torn API consumer for ${key}`);
+      const tornApi = new TornAPI(key);
+      tornApi.setComment("Scrattch-Brick");
+      tornApiQueue.addTornApiKey(tornApi);
+    }
   }
 
   async verify(msg: any) {
@@ -57,10 +60,10 @@ export class TornModule {
     const [command, arg1, arg2] = msg.content.split(' ');
     const factionId = parseInt(arg2);
 
-    const factionsPending: { [key: string]: number } = this.discordDb.get('factions-pending') || {};
-    const factionsLoaded = this.discordDb.get('factions-loaded') || {};
     switch (arg1) {
       case 'add':
+        const factionsPending: { [key: string]: number } = this.discordDb.get('factions-pending') || {};
+        const factionsLoaded = this.discordDb.get('factions-loaded') || {};
         if (!(factionId in factionsPending) && !(factionId in factionsLoaded)) {
           msg.guild.roles.create({
             name: `faction:${factionId}`,
@@ -99,17 +102,28 @@ export class TornModule {
     }
   }
 
-  // apiKey(msg: any) {
-  //   // TODO - allow deleting key
-  //   const [command, arg1] = msg.content.split(' ');
-  //   const apiKeys = this.tornDb.get('torn_api_keys') || {};
-  //   apiKeys.list = apiKeys.list || [];
-  //   apiKeys.list.push(arg1);
-  //   apiKeys.user_ids = apiKeys.user_ids || [];
-  //   apiKeys.user_ids.push(msg.author.id);
-  //   this.tornDb.set('torn_api_keys', apiKeys);
-  //   msg.channel.send(`API Key added`);
-  // }
+  async apiKey(msg: any) {
+    // TODO - allow deleting key
+    const [command, id] = msg.content.split(' ');
+    const apiKeys: string[] = this.discordDb.get('torn_api_keys') || [];
+    console.log(apiKeys);
+    if (apiKeys.includes(id)) {
+      msg.channel.send(`Already stored`);
+      return;
+    }
+    const testTornApi = new TornAPI(id);
+    testTornApi.setComment("Scrattch-Brick");
+    const apiInfo = await testTornApi.key.info() as IAPIKeyInfo;
+
+    if (!apiInfo || TornAPI.isError(apiInfo)) {
+      msg.channel.send(`key invalid`);
+    }
+
+    apiKeys.push(id);
+    this.discordDb.set('torn_api_keys', apiKeys);
+    msg.channel.send(`${apiInfo.access_type} key added`);
+    // TODO - it will be there on reload, but not used immediately...
+  }
 
   private async updatePendingFactions(msg: any) {
     const factionsPending: { [key: string]: number } = this.discordDb.get('factions-pending') || {};
