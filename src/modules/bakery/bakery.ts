@@ -1,3 +1,5 @@
+import JSONdb from "simple-json-db";
+
 const {chooseOne, toUpperCamelCase} = require('../../utils/utils');
 const {Format} = require('../../utils/rendering');
 const Distribution = require('../../utils/distribution');
@@ -65,7 +67,7 @@ const LEGENDARY_MODIFIER = [
   'Rekos Sunset',
 ];
 
-function bake(rarity) {
+function bake(rarity: string) {
   switch(rarity) {
     case 'common':
       return chooseOne(BASE_PASTRIES);
@@ -78,7 +80,7 @@ function bake(rarity) {
   }
 }
 
-function giftPastry(senderId, receiverId, bakeryDb) {
+export function giftPastry(senderId: string, receiverId: string, bakeryDb: JSONdb) {
   const dist = new Distribution(PASTRY_RARITY);
   return new Promise(resolve => {
         const rarity = dist.chooseOne();
@@ -100,7 +102,7 @@ function giftPastry(senderId, receiverId, bakeryDb) {
   });
 }
 
-function bakeryStats(userId, bakeryDb) {
+export function bakeryStats(userId: string, bakeryDb: JSONdb) {
   const user = bakeryDb.get(userId);
   if (!user || !user.sent) {
     return Promise.resolve("No bake stats available.");
@@ -109,9 +111,4 @@ function bakeryStats(userId, bakeryDb) {
     .map(rarity => `${toUpperCamelCase(rarity)}: ${user.sent[rarity]}`);
   
   return Promise.resolve(stats.join('\n'));
-}
-
-module.exports = {
-  bakeryStats,
-  giftPastry
 }
