@@ -7,7 +7,7 @@ import { TornModule } from '../modules/torn/torn_module';
 import { Db } from '../utils/db';
 
 
-let bakeryDb = new JSONdb('/usr/appdata/patisserie/bakery-data.json');
+let bakeryDb = new JSONdb('/app/db/bakery-data.json');
 
 const ADMIN_SERVERS = ['906362118914330694'];
 const PATTIES_ID = '<@!957473918887792700>';
@@ -72,6 +72,11 @@ export async function onMessage(redis: Db, tornModule: TornModule, msg: any) {
     return;
   }
 
+  if (command == '!ce') {
+    tornModule.company(msg);
+    return;
+  }
+
   if (command == '!serverinfo') {
     msg.channel.send(`Server id is <${msg.guildId}>`);
     const mode = isAdmin? "Admin" : "Read-only";
@@ -98,6 +103,7 @@ export async function onMessage(redis: Db, tornModule: TornModule, msg: any) {
     }
     return;
   }
+  // .
 
   if (command === '!bakestats') {
     const splits = text.split(' ');

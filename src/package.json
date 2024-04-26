@@ -16,16 +16,20 @@
   "license": "UNLICENSED",
   "sideEffects": false,
   "devDependencies": {
+    "@types/pg": "^8.11.4",
     "csv-reader": "^1.0.8",
-    "typescript": "^5.3.3",
-    "ts-node": "^10.9.2"
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
   },
   "dependencies": {
+    "@types/luxon": "^3.4.2",
     "axios": "^0.26.1",
     "discord.js": "^13.6.0",
     "dotenv": "^16.0.0",
     "ejs": "^3.1.6",
+    "luxon": "^3.4.4",
     "mathjs": "^10.4.1",
+    "pg": "^8.11.5",
     "pubsub-js": "^1.9.4",
     "redis": "^4.6.10",
     "simple-json-db": "^2.0.0",

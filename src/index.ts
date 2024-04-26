@@ -6,6 +6,27 @@ import {onMessage} from './bot/message-handler';
 import JSONdb from 'simple-json-db';
 import {Db} from './utils/db';
 
+import * as pg from 'pg';
+
+function createPgClient() {
+  const client = new pg.Client({
+    user: 'donato',
+    password: 'potato',
+    host: 'postgres',
+
+  });
+  return client.connect()
+  // try {
+  //   const res = await client.query('SELECT $1::text as message', ['Hello world!'])
+  //   console.log(res.rows[0].message) // Hello world!
+  // } catch (err) {
+  //   console.error(err);
+  // } finally {
+  //   await client.end()
+  // }
+
+}
+
 require('dotenv').config(); //initialize dotenv
 
 // invite link
@@ -30,15 +51,19 @@ async function init() {
   // const tornDb = new JSONdb('/app/db/torn-data.json');
   const discordDb = new JSONdb('/app/db/discord-data.json');
   const redisClient = await createRedisClient()
+  const pgClient = await createPgClient();
+
   const tornDb = new Db(redisClient);
  
   // https://discord.js.org/#/docs/discord.js/stable/class/GuildChannel?scrollTo=name
   const tornModule = new TornModule(tornDb, discordDb);
+  tornModule.setDiscordClient(discordClient);
 
   discordClient.on('message', (msg: Message) => {
     onMessage(tornDb, tornModule, msg);
   });
 }
+
 const discordClient = new Client({
   intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES] });
 

@@ -1,12 +1,38 @@
 import { TornAPI, TornInterfaces } from 'ts-torn-api';
-import {TornCache} from './torn_cache';
-import {UpdateType, TornApiQueue} from './torn_api_queue';
+import {Client, TextChannel} from 'discord.js';
+import { TornCache } from './torn_cache';
+import { UpdateType, TornApiQueue } from './torn_api_queue';
 import { extractDiscordId } from '../../utils/discord-utils';
 import { Db } from '../../utils/db';
-import { IAPIKeyInfo, IDiscord, IFaction, IUser } from 'ts-torn-api/dist/Interfaces';
+import { IAPIKeyInfo, ICompanyEmployee, IDiscord, IFaction, IUser } from 'ts-torn-api/dist/Interfaces';
 import JSONdb from 'simple-json-db';
+import {DateTime} from 'luxon';
 
 // https://github.com/AnIdiotsGuide/discordjs-bot-guide/blob/master/understanding/roles.md
+function companyPoints(employees: ICompanyEmployee[]) {
+  const names: string[] = [];
+  const points: string[] = [];
+  const alerts: string[] = [];
+  employees.forEach(
+    (o: any) => {
+    // (o: ICompanyEmployee) => {
+      const name = o.name;
+      const {merits, addiction, inactivity} = o.effectiveness;
+      names.push(name);
+      points.push((merits || 0) + (addiction || 0) + (inactivity || 0));
+      if (addiction < -5) {
+        alerts.push(`${name}: Addiction is ${addiction}`);
+      }
+      if (o.inactivity < -4) {
+        alerts.push(`${name}: inactivity is ${inactivity}`);
+      }
+    });
+  
+  if (alerts.length === 0) {
+    alerts.push("All employees meeting expectations.")
+  }
+  return `${names.join(',')}\n${points.join(',')}\n ${alerts.join('\n')}`;
+}
 
 export class TornModule {
   private tornCache: TornCache;
@@ -16,6 +42,30 @@ export class TornModule {
     this.tornCache = new TornCache(tornDb, tornApiQueue);
 
     this.initializeApiKeys(tornApiQueue);
+  }
+
+
+  setDiscordClient(client:Client) {
+    this.beginMonitoringCompany(client);
+  }
+
+  private beginMonitoringCompany(client:Client) {
+    let dt = DateTime.fromObject({hour: 18, minute: 15}, {zone: 'utc'})
+    if (dt < DateTime.now()) {
+      // the time is yesterday
+      dt = dt.plus({days: 1});
+    }
+    // add a little variation
+    dt = dt.plus({seconds: Math.floor(Math.random()*60)});
+    const timeUntil = dt.diff(DateTime.now())
+    console.log(`Will check again in ${timeUntil.as('hours')} hours`);
+    const reefChannelId = '958522179941703721';
+    const channel = client.channels.cache.get(reefChannelId) as TextChannel;
+    setInterval(async () => {
+      const info = await this.tornCache.get(UpdateType.CompanyEmployee, /* id= */ 105377) as ICompanyEmployee[];
+      const txt = companyPoints(info);
+      channel?.send(txt);
+    }, timeUntil.as('milliseconds'));
   }
 
   private initializeApiKeys(tornApiQueue: TornApiQueue) {
@@ -55,6 +105,16 @@ export class TornModule {
     const json = await this.tornCache.get(UpdateType.User, playerId);
     console.log(json);
     msg.channel.send(JSON.stringify(json));
+  }
+
+  async company(msg: any) {
+    // TODO - require admin
+    const [command, arg1, arg2] = msg.content.split(' ');
+    const id = parseInt(arg2);
+    const info = await this.tornCache.get(UpdateType.CompanyEmployee, id) as ICompanyEmployee[];
+    const txt = companyPoints(info);
+    msg.channel.send(txt);
+    // points(x)
   }
 
   async faction(msg: any) {
@@ -167,7 +227,7 @@ export class TornModule {
 
     for (let member of result.members) {
       const discordInfo =
-          await this.tornCache.get(UpdateType.Discord, parseInt(member.id)) as IDiscord;
+        await this.tornCache.get(UpdateType.Discord, parseInt(member.id)) as IDiscord;
       if (discordInfo) {
         const discordId = discordInfo.discordID;
         // todo - guild.members.cache is unreliable, use fetch

@@ -10,6 +10,7 @@ export enum UpdateType {
   Discord = 'discord',
   Chain = 'chain',
   TerritoryWar = 'territory_war',
+  CompanyEmployee = 'company_employee',
   Api = 'api',
 }
 
@@ -18,13 +19,15 @@ interface UpdateRequest {
   id: number;
 }
 
-const ONE_MINUTE_IN_MS = 1000 * 60;
-const ONE_HOUR_IN_MS = 1000 * 60 * 60;
+const ONE_MINUTE_IN_MS = 60 * 1000;
+const ONE_HOUR_IN_MS = 60 * ONE_MINUTE_IN_MS;
+const ONE_DAY_IN_MS = 24 * ONE_HOUR_IN_MS;
 const UPDATE_TIME_REQUIRED_MS = {
-  [UpdateType.User]: ONE_HOUR_IN_MS * 6,
-  [UpdateType.Faction]: ONE_HOUR_IN_MS * 24,
-  [UpdateType.Discord]: ONE_HOUR_IN_MS * 24 * 30,
-  [UpdateType.Chain]: ONE_MINUTE_IN_MS * 1,
+  [UpdateType.User]: ONE_DAY_IN_MS,
+  [UpdateType.CompanyEmployee]: ONE_HOUR_IN_MS,
+  [UpdateType.Faction]: ONE_DAY_IN_MS,
+  [UpdateType.Discord]: 7 * ONE_DAY_IN_MS,
+  [UpdateType.Chain]: ONE_MINUTE_IN_MS,
   [UpdateType.TerritoryWar]: ONE_MINUTE_IN_MS * 5,
   [UpdateType.Api]: Number.MAX_SAFE_INTEGER,
 };
@@ -59,12 +62,15 @@ export class TornApiQueue {
       case UpdateType.Faction:
         response = await tornApi.faction.faction(id.toString());
         break;
+      case UpdateType.CompanyEmployee:
+        response = await tornApi.company.employees(id.toString());
+        break;
       case UpdateType.Api:
         response = await tornApi.key.info();
       case UpdateType.Chain:
       case UpdateType.TerritoryWar:
       default:
-        console.log('not implement');
+        console.log('not implemented');
     }
     if (!response || TornAPI.isError(response)) {
       // TODO if error is invalid key, mark it for removal
