@@ -1,6 +1,7 @@
 import { Torn, TornAPI, TornInterfaces } from 'ts-torn-api';
 import EventEmitter from 'node:events';
 import { ConsumerInterface, LocalConsumerImpl, LocalStreamImpl, StreamInterface } from './queue';
+import { AppendOnlyLog } from './append_only_log';
 import JSONdb from 'simple-json-db';
 import { Db, DbRecord } from '../../utils/db';
 
@@ -36,7 +37,7 @@ export class TornApiQueue {
   stream: StreamInterface;
   consumerGroup: ConsumerInterface;
 
-  constructor(readonly tornDb: Db, public readonly updateEmitter = new EventEmitter(), readonly queue: Array<string> = [], readonly emitter: EventEmitter = new EventEmitter()) {
+  constructor(readonly tornDb: Db, readonly appendOnlyLog: AppendOnlyLog, public readonly updateEmitter = new EventEmitter(), readonly queue: Array<string> = [], readonly emitter: EventEmitter = new EventEmitter()) {
     this.stream = new LocalStreamImpl();
     this.consumerGroup = new LocalConsumerImpl(this.stream);
   }
@@ -99,6 +100,10 @@ export class TornApiQueue {
       raw: result,
       last_update: Date.now()
     });
+    // write to append-only log here.
+    const [apiType, id] = key.split(':');
+    console.log(key, apiType, id);
+    this.appendOnlyLog.write(apiType, Number(id), Date.now(), JSON.stringify(result));
     return result;
   }
 

@@ -1,3 +1,4 @@
+# cd /mnt/user/development/patisserie
 # docker build . --tag donato/patisserie
 # Set environment variables for:
 #     CLIENT_TOKEN= from discord

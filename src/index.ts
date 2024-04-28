@@ -5,6 +5,7 @@ import {createClient, RedisClientType} from 'redis';
 import {onMessage} from './bot/message-handler';
 import JSONdb from 'simple-json-db';
 import {Db} from './utils/db';
+import {createAppendOnlyLog, AppendOnlyLog} from './modules/torn/append_only_log';
 
 import * as pg from 'pg';
 
@@ -47,16 +48,22 @@ function createRedisClient() {
   }
 }
 
+let tornAppendOnlyLog: AppendOnlyLog | null = null;
 async function init() {
   // const tornDb = new JSONdb('/app/db/torn-data.json');
   const discordDb = new JSONdb('/app/db/discord-data.json');
   const redisClient = await createRedisClient()
   const pgClient = await createPgClient();
+  tornAppendOnlyLog = await createAppendOnlyLog();
+
+  setInterval(() => {
+    tornAppendOnlyLog?.stats();
+  }, 60 * 1000)
 
   const tornDb = new Db(redisClient);
  
   // https://discord.js.org/#/docs/discord.js/stable/class/GuildChannel?scrollTo=name
-  const tornModule = new TornModule(tornDb, discordDb);
+  const tornModule = new TornModule(tornDb, discordDb, tornAppendOnlyLog);
   tornModule.setDiscordClient(discordClient);
 
   discordClient.on('message', (msg: Message) => {
@@ -75,3 +82,26 @@ discordClient.on('ready', () => {
 });
 
 discordClient.login(process.env.CLIENT_TOKEN);
+
+process.once('SIGUSR2', async () => {
+  // Some kinda bug https://github.com/remy/nodemon/issues/1889
+  console.log('SIGUSR2 signal received');
+    // we expect nodemon to send another signal very soon after the first, so we listen for it again.
+    // I've set this timeout to repeat the signal after 500 ms in case nodemon doesn't
+    const secondSignalTimeout = setTimeout(() => {
+      console.warn('second signal not received. exiting anyway');
+      process.kill(process.pid, 'SIGUSR2')
+  }, 1000);
+
+  process.once('SIGUSR2', async () => {
+      clearTimeout(secondSignalTimeout);
+      try {
+        if (tornAppendOnlyLog) {
+          await tornAppendOnlyLog.shutdown();
+          tornAppendOnlyLog = null;
+        }
+      } finally {
+          process.kill(process.pid, 'SIGUSR2')
+      }
+  });
+});

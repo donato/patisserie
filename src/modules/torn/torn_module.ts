@@ -1,6 +1,7 @@
 import { TornAPI, TornInterfaces } from 'ts-torn-api';
 import {Client, TextChannel} from 'discord.js';
 import { TornCache } from './torn_cache';
+import { AppendOnlyLog } from './append_only_log';
 import { UpdateType, TornApiQueue } from './torn_api_queue';
 import { extractDiscordId } from '../../utils/discord-utils';
 import { Db } from '../../utils/db';
@@ -23,8 +24,8 @@ function companyPoints(employees: ICompanyEmployee[]) {
       if (addiction < -5) {
         alerts.push(`${name}: Addiction is ${addiction}`);
       }
-      if (o.inactivity < -4) {
-        alerts.push(`${name}: inactivity is ${inactivity}`);
+      if (inactivity < -4) {
+        alerts.push(`${name}: Inactivity is ${inactivity}`);
       }
     });
   
@@ -37,8 +38,8 @@ function companyPoints(employees: ICompanyEmployee[]) {
 export class TornModule {
   private tornCache: TornCache;
 
-  constructor(readonly tornDb: Db, readonly discordDb: JSONdb) {
-    const tornApiQueue = new TornApiQueue(tornDb);
+  constructor(readonly tornDb: Db, readonly discordDb: JSONdb, appendOnlyLog: AppendOnlyLog) {
+    const tornApiQueue = new TornApiQueue(tornDb, appendOnlyLog);
     this.tornCache = new TornCache(tornDb, tornApiQueue);
 
     this.initializeApiKeys(tornApiQueue);
@@ -103,15 +104,23 @@ export class TornModule {
   async lookup(msg: any) {
     const [command, playerId] = msg.content.split(' ');
     const json = await this.tornCache.get(UpdateType.User, playerId);
-    console.log(json);
     msg.channel.send(JSON.stringify(json));
   }
 
   async company(msg: any) {
     // TODO - require admin
     const [command, arg1, arg2] = msg.content.split(' ');
-    const id = parseInt(arg2);
-    const info = await this.tornCache.get(UpdateType.CompanyEmployee, id) as ICompanyEmployee[];
+    let companyId = parseInt(arg2);
+    if (!companyId) {
+      const playerId = 2816536;
+      const playerInfo = await this.tornCache.get(UpdateType.User, playerId) as IUser;
+      companyId = playerInfo.job?.company_id;
+      if (!companyId) {
+        msg.channel.send(`Unable to find company by id`);
+        return;
+      }
+    }
+    const info = await this.tornCache.get(UpdateType.CompanyEmployee, companyId) as ICompanyEmployee[];
     const txt = companyPoints(info);
     msg.channel.send(txt);
     // points(x)
@@ -231,15 +240,15 @@ export class TornModule {
       if (discordInfo) {
         const discordId = discordInfo.discordID;
         // todo - guild.members.cache is unreliable, use fetch
-        const member = msg.guild.members.cache.get(discordId);
-        if (!member) {
-          console.log(`member not found ${discordId}`);
+        const discordMember = msg.guild.members.cache.get(discordId);
+        if (!discordMember) {
+          console.log(`${member.name} not found in this discord server [${discordId}]`);
         } else {
-          if (member.roles.cache.get(role.id)) {
-            console.log('already has role');
+          if (discordMember.roles.cache.get(role.id)) {
+            console.log(`${member.name} already has faction role`);
           } else {
-            console.log('adding role for member');
-            member.roles.add(role).catch(console.error);
+            console.log(`adding role for ${member.name}`);
+            discordMember.roles.add(role).catch(console.error);
           }
         }
       }
