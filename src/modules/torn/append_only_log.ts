@@ -24,10 +24,6 @@ export class AppendOnlyLog {
       this.logger.info({
         apiType, id, response
       });
-      // const tmpWriter = await ParquetWriter.openFile(schema, '/app/db/torn-api-logs.parquet');
-      // await tmpWriter.appendRow({api_type: apiType, id, datetime, response});
-      // await tmpWriter.close();
-      // await this.writer.appendRow({api_type: apiType, id, datetime, response});
     } catch (e) {
       console.log('Error writing log', e);
     }
@@ -37,7 +33,7 @@ export class AppendOnlyLog {
     try {
       // await this.writer.close();
     } catch (e) {
-      console.log('Error closing parquet file', e);
+      console.log('Error closing file', e);
     }
   }
 

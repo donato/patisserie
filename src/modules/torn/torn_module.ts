@@ -7,7 +7,7 @@ import { extractDiscordId } from '../../utils/discord-utils';
 import { Db } from '../../utils/db';
 import { IAPIKeyInfo, ICompanyEmployee, IDiscord, IFaction, IUser } from 'ts-torn-api/dist/Interfaces';
 import JSONdb from 'simple-json-db';
-import {DateTime} from 'luxon';
+import {DateTime, Duration} from 'luxon';
 
 // https://github.com/AnIdiotsGuide/discordjs-bot-guide/blob/master/understanding/roles.md
 function companyPoints(employees: ICompanyEmployee[]) {
@@ -62,10 +62,16 @@ export class TornModule {
     console.log(`Will check again in ${timeUntil.as('hours')} hours`);
     const reefChannelId = '958522179941703721';
     const channel = client.channels.cache.get(reefChannelId) as TextChannel;
-    setInterval(async () => {
+    setTimeout(async () => {
       const info = await this.tornCache.get(UpdateType.CompanyEmployee, /* id= */ 105377) as ICompanyEmployee[];
       const txt = companyPoints(info);
       channel?.send(txt);
+
+      setInterval(async () => {
+        const info = await this.tornCache.get(UpdateType.CompanyEmployee, /* id= */ 105377) as ICompanyEmployee[];
+        const txt = companyPoints(info);
+        channel?.send(txt);
+      }, Duration.fromObject({day: 1}).as('milliseconds'));
     }, timeUntil.as('milliseconds'));
   }
 
