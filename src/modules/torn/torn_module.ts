@@ -104,7 +104,11 @@ export class TornModule {
       msg.channel.send("Torn API Error: " + userdata.error);
       return;
     }
-    msg.channel.send(`${userdata.name}[${tornId}] has been verified!`);
+    msg.member.setNickname(`${userdata.name} [${tornId}]`).catch((e:any) => {
+      console.log(e)
+      msg.channel.send(`Failed to update username`);
+    });
+    msg.channel.send(`${userdata.name} [${tornId}] has been verified!`);
   }
 
   async lookup(msg: any) {
@@ -139,38 +143,20 @@ export class TornModule {
 
     switch (arg1) {
       case 'add':
-        const factionsPending: { [key: string]: number } = this.discordDb.get('factions-pending') || {};
-        const factionsLoaded = this.discordDb.get('factions-loaded') || {};
-        if (!(factionId in factionsPending) && !(factionId in factionsLoaded)) {
-          msg.guild.roles.create({
-            name: `faction:${factionId}`,
-            // color: Colors.Blue,
-            // reason: 'we needed a role for Super Cool People',
-          }).then((info: any) => {
-            const roleId = info.id;
-            factionsPending[factionId.toString()] = roleId;
-            this.discordDb.set('factions-pending', factionsPending);
-            msg.channel.send(`Role created <@&${roleId}>`);
-          }).catch(console.error);
-        } else {
-          const roleId = factionsLoaded[factionId] || factionsPending[factionId];
-          msg.channel.send(`Role already exists <@&${roleId}>`);
-        }
+        // TODO(): should protect from double-calls, since it's async
+        this.createRoleForFactionId(factionId, msg);
         this.tornCache.refresh(UpdateType.Faction, factionId);
+        this.updateFaction(factionId, msg);
         return;
-
+      // a
       case 'remove':
-        // this.discordDb.delete('factions-pending');
         msg.channel.send('NOT IMPLEMENTED');
         return;
       case 'clear':
-        // this.discordDb.delete('factions-pending');
-        // this.discordDb.delete('factions-loaded');
         return;
 
       case 'refresh':
-        this.updatePendingFactions(msg);
-        this.updateLoadedFactions(msg);
+        this.updateFaction(factionId, msg);
         return;
 
       default:
@@ -202,32 +188,42 @@ export class TornModule {
     // TODO - it will be there on reload, but not used immediately...
   }
 
-  private async updatePendingFactions(msg: any) {
-    const factionsPending: { [key: string]: number } = this.discordDb.get('factions-pending') || {};
-    const factionsLoaded = this.discordDb.get('factions-loaded') || {};
-    // Update factions that were in the pending state (role created but no faction info)
-    for (let factionId in factionsPending) {
-      const roleId = factionsPending[factionId];
-      const factionInfo = await this.tornCache.get(UpdateType.Faction, parseInt(factionId)) as IFaction;
-      if (factionInfo) {
-        msg.guild.roles.cache.get(roleId).setName(factionInfo.name);
-        msg.channel.send(`Role updated <@&${roleId}>`);
-        factionsLoaded[factionId] = factionsPending[factionId];
-        delete factionsPending[factionId];
-      }
+  private async createRoleForFactionId(factionId:number, msg: any) {
+    const lockfileKey = `lock-${msg.guildId}-${factionId}`;
+    if (this.discordDb.has(lockfileKey)) {
+      console.log('Avoiding re-adding role.');
+      return;
     }
-    this.discordDb.set('factions-pending', factionsPending);
-    this.discordDb.set('factions-loaded', factionsLoaded);
+    this.discordDb.set(lockfileKey, 'true');
+    try {
+      const factionInfo = await this.tornCache.get(UpdateType.Faction, factionId) as IFaction;
+      const name = factionInfo.name;
+      const roleExists = msg.guild.roles.cache.find((r : any) => r.name === name);
+      if (roleExists) {
+        console.log('role already exists');
+        msg.channel.send(`Role already exists <@&${roleExists.id}>`);
+      } else {
+        const info = await msg.guild.roles.create({
+          name: factionInfo.name,
+          // color: Colors.Blue,
+          // reason: 'we needed a role for Super Cool People',
+        });
+        const roleId = info.id;
+        msg.channel.send(`Role created <@&${roleId}>`);
+      }
+    } finally {
+      this.discordDb.delete(lockfileKey);
+    }
   }
 
-  private async updateLoadedFactions(msg: any) {
-    const factionsLoaded = this.discordDb.get('factions-loaded') || {};
-    for (let factionId in factionsLoaded) {
-      const roleId = factionsLoaded[factionId];
-      const result = await this.tornCache.get(UpdateType.Faction, parseInt(factionId)) as IFaction;
-      this.updateFactionMembers(result);
-      this.setDiscordRolesForUsers(result, roleId, msg);
-    }
+  private async updateFaction(factionId: number, msg: any) {
+    const factionInfo = await this.tornCache.get(UpdateType.Faction, factionId) as IFaction;
+    const name = factionInfo.name;
+    const roleExists = msg.guild.roles.cache.find((r : any) => r.name === name);
+    const roleId = roleExists.id;
+    const result = await this.tornCache.get(UpdateType.Faction, factionId) as IFaction;
+    this.updateFactionMembers(result);
+    this.setDiscordRolesForUsers(result, roleId, msg);
   }
 
   updateFactionMembers(response: IFaction) {
