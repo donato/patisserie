@@ -5,7 +5,9 @@ import { AppendOnlyLog } from './append_only_log';
 import { UpdateType, TornApiQueue } from './torn_api_queue';
 import { extractDiscordId } from '../../utils/discord-utils';
 import { Db } from '../../utils/db';
-import { IAPIKeyInfo, ICompanyEmployee, IDiscord, IFaction, IUser } from 'ts-torn-api/dist/Interfaces';
+// import {Format} from '../../utils/rendering';
+const {Format} = require('../../utils/rendering');
+import { IAPIKeyInfo, ICompanyEmployee, IDiscord, IFaction, IMember, IPersonalStats, IUser } from 'ts-torn-api/dist/Interfaces';
 import JSONdb from 'simple-json-db';
 import {DateTime, Duration} from 'luxon';
 
@@ -35,6 +37,20 @@ function companyPoints(employees: ICompanyEmployee[]) {
   return `${names.join(',')}\n${points.join(',')}\n ${alerts.join('\n')}`;
 }
 
+async function generateFactionSummary(tornCache: TornCache, faction:IFaction) {
+  const memberIds = faction.members.map(m => m.id);
+  const memberInfo = await Promise.all(
+    memberIds.map(id => tornCache.get(UpdateType.UserPersonalStats, parseInt(id))));
+  const rows:string[] = [];
+  memberIds.forEach((id: string, idx: number) => {
+    const name = faction.members[idx].name;
+    const m = memberInfo[idx] as IPersonalStats;
+    rows.push(`${name}[${id}]: Total Respect: ${Format.number(m.respectforfaction)}`);
+  });
+
+  return rows.join('\n');
+}
+
 export class TornModule {
   private tornCache: TornCache;
 
@@ -48,6 +64,7 @@ export class TornModule {
 
   setDiscordClient(client:Client) {
     this.beginMonitoringCompany(client);
+    this.beginMonitoringFaction(client);
   }
 
   private beginMonitoringCompany(client:Client) {
@@ -60,7 +77,7 @@ export class TornModule {
     dt = dt.plus({seconds: Math.floor(Math.random()*60)});
     const timeUntil = dt.diff(DateTime.now())
     console.log(`Will check again in ${timeUntil.as('hours')} hours`);
-    const reefChannelId = '958522179941703721';
+    const reefChannelId = '1257857205575880714';
     const channel = client.channels.cache.get(reefChannelId) as TextChannel;
     setTimeout(async () => {
       const info = await this.tornCache.get(UpdateType.CompanyEmployee, /* id= */ 105377) as ICompanyEmployee[];
@@ -73,6 +90,32 @@ export class TornModule {
         channel?.send(txt);
       }, Duration.fromObject({day: 1}).as('milliseconds'));
     }, timeUntil.as('milliseconds'));
+  }
+
+  private async beginMonitoringFaction(client: Client) {
+    let dt = DateTime.fromObject({hour: 0, minute: 9}, {zone: 'utc'})
+    if (dt < DateTime.now()) {
+      // the time is yesterday
+      dt = dt.plus({days: 1});
+    }
+    // add a little variation
+    dt = dt.plus({seconds: Math.floor(Math.random()*60)});
+    const timeUntil = dt.diff(DateTime.now())
+    console.log(`Will check again in ${timeUntil.as('hours')} hours`);
+    const reefChannelId = '1257858444300517517';
+    const channel = client.channels.cache.get(reefChannelId) as TextChannel;
+    setTimeout(async () => {
+      const info = await this.tornCache.get(UpdateType.Faction, /* id= */ 51961) as IFaction;
+      const txt = await generateFactionSummary(this.tornCache, info);
+      channel?.send(txt);
+
+      setInterval(async () => {
+        const info = await this.tornCache.get(UpdateType.CompanyEmployee, /* id= */ 51961) as IFaction;
+        const txt = await generateFactionSummary(this.tornCache, info);
+        channel?.send(txt);
+      }, Duration.fromObject({day: 1}).as('milliseconds'));
+    }, timeUntil.as('milliseconds'));
+
   }
 
   private initializeApiKeys(tornApiQueue: TornApiQueue) {
@@ -133,7 +176,6 @@ export class TornModule {
     const info = await this.tornCache.get(UpdateType.CompanyEmployee, companyId) as ICompanyEmployee[];
     const txt = companyPoints(info);
     msg.channel.send(txt);
-    // points(x)
   }
 
   async faction(msg: any) {

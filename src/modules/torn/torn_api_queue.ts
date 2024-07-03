@@ -7,6 +7,7 @@ import { Db, DbRecord } from '../../utils/db';
 
 export enum UpdateType {
   User = 'user',
+  UserPersonalStats = 'userpersonalstats',
   Faction = 'faction',
   Discord = 'discord',
   Chain = 'chain',
@@ -25,8 +26,9 @@ const ONE_HOUR_IN_MS = 60 * ONE_MINUTE_IN_MS;
 const ONE_DAY_IN_MS = 24 * ONE_HOUR_IN_MS;
 const UPDATE_TIME_REQUIRED_MS = {
   [UpdateType.User]: ONE_DAY_IN_MS,
+  [UpdateType.UserPersonalStats]: ONE_HOUR_IN_MS,
   [UpdateType.CompanyEmployee]: ONE_HOUR_IN_MS,
-  [UpdateType.Faction]: ONE_DAY_IN_MS,
+  [UpdateType.Faction]: ONE_HOUR_IN_MS,
   [UpdateType.Discord]: 7 * ONE_DAY_IN_MS,
   [UpdateType.Chain]: ONE_MINUTE_IN_MS,
   [UpdateType.TerritoryWar]: ONE_MINUTE_IN_MS * 5,
@@ -57,11 +59,14 @@ export class TornApiQueue {
       case UpdateType.User:
         response = await tornApi.user.user(id.toString());
         break;
+      case UpdateType.UserPersonalStats:
+        response = await tornApi.user.personalstats(id.toString());
+        break;
       case UpdateType.Discord:
         response = await tornApi.user.discord(id.toString());
         break;
       case UpdateType.Faction:
-        response = await tornApi.faction.faction(id.toString());
+        response = await tornApi.faction.basic(id.toString());
         break;
       case UpdateType.CompanyEmployee:
         response = await tornApi.company.employees(id.toString());

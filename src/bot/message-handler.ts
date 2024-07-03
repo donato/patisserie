@@ -11,7 +11,7 @@ let bakeryDb = new JSONdb('/app/db/bakery-data.json');
 
 const ADMIN_SERVERS = ['906362118914330694'];
 const PATTIES_ID = '<@!957473918887792700>';
-
+const VANGUARD_ASSASSIN_SERVER_ID = '1253005595779272816';
 
 export async function onMessage(redis: Db, tornModule: TornModule, msg: any) {
   const text = msg.content;
