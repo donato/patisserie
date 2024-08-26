@@ -1,8 +1,5 @@
 version: '3.4'
 
-# docker build . --tag donato/patisserie
-# docker run -d --name "nodemon-test" -p 1337:1337 oze4/nodemon-docker-test
-
 services:
   patisserie:
     image: donato/patisserie

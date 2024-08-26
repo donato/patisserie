@@ -11,7 +11,7 @@
 FROM node:latest
 
 # install nodemon globally
-RUN npm install nodemon -g
+RUN npm install forever nodemon -g
 
 EXPOSE 3000
 
