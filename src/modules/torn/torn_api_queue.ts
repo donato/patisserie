@@ -25,7 +25,7 @@ const ONE_MINUTE_IN_MS = 60 * 1000;
 const ONE_HOUR_IN_MS = 60 * ONE_MINUTE_IN_MS;
 const ONE_DAY_IN_MS = 24 * ONE_HOUR_IN_MS;
 const UPDATE_TIME_REQUIRED_MS = {
-  [UpdateType.User]: ONE_DAY_IN_MS,
+  [UpdateType.User]: ONE_MINUTE_IN_MS,
   [UpdateType.UserPersonalStats]: ONE_HOUR_IN_MS,
   [UpdateType.CompanyEmployee]: ONE_HOUR_IN_MS,
   [UpdateType.Faction]: ONE_HOUR_IN_MS,

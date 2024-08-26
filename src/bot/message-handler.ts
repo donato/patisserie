@@ -52,6 +52,9 @@ export async function onMessage(redis: Db, tornModule: TornModule, msg: any) {
   //   return;
   // }
 
+  if (command == '!crash') {
+    throw 'intentional crash';
+  }
   if (command == '!api-add') {
     tornModule.apiKey(msg);
     return;
@@ -69,6 +72,11 @@ export async function onMessage(redis: Db, tornModule: TornModule, msg: any) {
 
   if (command == '!faction') {
     tornModule.faction(msg);
+    return;
+  }
+
+  if (command== '!frc') {
+    tornModule.checkRevives(msg);
     return;
   }
 

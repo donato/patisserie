@@ -9,7 +9,51 @@ import { Db } from '../../utils/db';
 const {Format} = require('../../utils/rendering');
 import { IAPIKeyInfo, ICompanyEmployee, IDiscord, IFaction, IMember, IPersonalStats, IUser } from 'ts-torn-api/dist/Interfaces';
 import JSONdb from 'simple-json-db';
+import axios from 'axios';
 import {DateTime, Duration} from 'luxon';
+
+interface TornStatsFactionInfo {
+  members: {
+    [key: string]: {name:string, total: number, verified: number}
+  },
+}
+async function readTornStatsInfo():Promise<TornStatsFactionInfo> {
+  const url = 'https://www.tornstats.com/api/v2/TS_SiMwVEkP6FRlSTnq/faction/roster';
+  return axios.get(url).then(r => {return r.data});
+}
+
+interface YataFactionInfo{
+  members: {
+    [member_id: string] : {
+      "id": number,  // member torn ID
+      "name": String,  // member name
+      "status": String,  // online status (online/idle/offline)
+      "last_action": number,  // last action timestamp
+      "dif": number,  // days in faction
+      "crimes_rank": number,  // crimes rank in the faction
+      "bonus_score": number,  // bonus score (combined report)
+      "nnb_share": number,  // nnb sharing status (-1 not sharing, 0 not on yata, 1 sharing)
+      "nnb": number,  // natural nerve bar
+      "energy_share": number,  // energy level sharing status (-1 not sharing, 0 not on yata, 1 sharing)
+      "energy": number,  // energy level
+      "refill": boolean,  // refill available
+      "drug_cd": number,  // drug cooldown
+      "revive": boolean,  // ability to revive
+      "carnage": number,  // 0 to 3 single hit respect honors
+      "stats_share": number,  // stats sharing status (-1 not sharing, 0 not on yata, 1 sharing)
+      "stats_dexterity": number,  // 0 if unknown
+      "stats_defense": number,  // 0 if unknown
+      "stats_speed": number,  // 0 if unknown
+      "stats_strength": number,  // 0 if unknown
+      "stats_total": number,  // 0 if unknown
+    },
+  },
+}
+
+async function readYataFactionInfo(): Promise<YataFactionInfo> {
+  const url = 'https://yata.yt/api/v1/faction/members/?key=ptVSLreadhYW3L1h';
+  return axios.get(url).then(r => {return r.data});
+}
 
 // https://github.com/AnIdiotsGuide/discordjs-bot-guide/blob/master/understanding/roles.md
 function companyPoints(employees: ICompanyEmployee[]) {
@@ -126,6 +170,42 @@ export class TornModule {
       tornApi.setComment("Scrattch-Brick");
       tornApiQueue.addTornApiKey(tornApi);
     }
+  }
+
+  // hi
+  async checkRevives(msg:any) {
+    const tsInfo = await readTornStatsInfo();
+    const yataInfo = await readYataFactionInfo();
+    console.log(yataInfo);
+    const factionId = 51961;
+    const factionInfo = await this.tornCache.get(UpdateType.Faction, factionId) as IFaction;
+    let counter =0;
+    for (const member of factionInfo.members) {
+      const txt = [];
+      const userInfo = await this.tornCache.get(UpdateType.User, parseInt(member.id)) as IUser;
+      if (userInfo.revivable == 0) {
+        counter += 1;
+      } else {
+        txt.push(`${userInfo.name} is revivable ${userInfo.revivable}`);
+      }
+
+      const tsMemberInfo = tsInfo.members[member.id];
+      if (!tsMemberInfo) {
+        txt.push(`${userInfo.name} has not connected to faction tornstats.`);
+      } else if (tsMemberInfo.verified == 0) {
+        txt.push(`${userInfo.name} is not tornstats verified.`);
+      }
+      const yataMemberInfo = yataInfo.members[member.id];
+      if (!yataMemberInfo) {
+        txt.push(`${userInfo.name} is not in YATA.`);
+      } else if (yataMemberInfo.nnb_share == -1) {
+        txt.push(`${userInfo.name} is not sharing NNB in YATA.`);
+      }
+      if (txt.length) {
+        msg.channel.send(txt.join('\n'));
+      }
+    }
+    msg.channel.send(`Found ${counter} members with revives disabled.`);
   }
 
   async verify(msg: any) {
