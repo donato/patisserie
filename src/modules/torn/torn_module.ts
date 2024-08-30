@@ -89,6 +89,11 @@ async function generateFactionSummary(tornCache: TornCache, faction:IFaction) {
   memberIds.forEach((id: string, idx: number) => {
     const name = faction.members[idx].name;
     const m = memberInfo[idx] as IPersonalStats;
+    if (!m) {
+      console.log(`Unexpected value for index ${idx} ${memberInfo}`);
+      rows.push(`Invalid data for ${name}`);
+      return;
+    }
     rows.push(`${name}[${id}]: Total Respect: ${Format.number(m.respectforfaction)}`);
   });
 
@@ -196,7 +201,7 @@ export class TornModule {
         txt.push(`${userInfo.name} is not tornstats verified.`);
       }
       const yataMemberInfo = yataInfo.members[member.id];
-      if (!yataMemberInfo) {
+      if (!yataMemberInfo || yataMemberInfo.nnb_share == 0) {
         txt.push(`${userInfo.name} is not in YATA.`);
       } else if (yataMemberInfo.nnb_share == -1) {
         txt.push(`${userInfo.name} is not sharing NNB in YATA.`);
