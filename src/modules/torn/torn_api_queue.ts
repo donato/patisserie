@@ -28,7 +28,7 @@ const UPDATE_TIME_REQUIRED_MS = {
   [UpdateType.User]: ONE_MINUTE_IN_MS,
   [UpdateType.UserPersonalStats]: ONE_HOUR_IN_MS,
   [UpdateType.CompanyEmployee]: ONE_HOUR_IN_MS,
-  [UpdateType.Faction]: ONE_HOUR_IN_MS,
+  [UpdateType.Faction]: ONE_MINUTE_IN_MS * 5,
   [UpdateType.Discord]: 7 * ONE_DAY_IN_MS,
   [UpdateType.Chain]: ONE_MINUTE_IN_MS,
   [UpdateType.TerritoryWar]: ONE_MINUTE_IN_MS * 5,

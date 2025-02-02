@@ -75,6 +75,11 @@ export async function onMessage(redis: Db, tornModule: TornModule, msg: any) {
     return;
   }
 
+  if (command== '!travel') {
+    tornModule.checkFlights(msg);
+    return;
+  }
+
   if (command== '!frc') {
     tornModule.checkRevives(msg);
     return;

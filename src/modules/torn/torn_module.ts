@@ -12,6 +12,8 @@ import JSONdb from 'simple-json-db';
 import axios from 'axios';
 import {DateTime, Duration} from 'luxon';
 
+const FACTION_ID = 47863;
+
 interface TornStatsFactionInfo {
   members: {
     [key: string]: {name:string, total: number, verified: number}
@@ -78,7 +80,8 @@ function companyPoints(employees: ICompanyEmployee[]) {
   if (alerts.length === 0) {
     alerts.push("All employees meeting expectations.")
   }
-  return `${names.join(',')}\n${points.join(',')}\n ${alerts.join('\n')}`;
+  // return `${names.join(',')}\n${points.join(',')}\n ${alerts.join('\n')}`;
+  return `${alerts.join('\n')}`;
 }
 
 async function generateFactionSummary(tornCache: TornCache, faction:IFaction) {
@@ -98,6 +101,34 @@ async function generateFactionSummary(tornCache: TornCache, faction:IFaction) {
   });
 
   return rows.join('\n');
+}
+
+function normalizeName(name:string) {
+  const map:{[n: string]: string} = {
+    Japanese: 'Japan',
+    Chinese: 'China',
+    Emirati: 'UAE',
+    'South African': 'South Africa',
+  }
+  return map[name] || name;
+}
+
+function getLocation(description:string) {
+  if (description.indexOf('Traveling to') === 0) {
+    return description.split('Traveling to ')[1];
+  } else if (description.indexOf('In hospital') === 0) {
+    return 'Torn';
+  } else if (description.indexOf('Returning to') === 0) {
+    return 'Torn';
+  } if (description.indexOf('In a ') === 0) {
+    return normalizeName(description.split('In a ')[1].split(' hospital')[0]);
+  } if (description.indexOf('In an ') === 0) {
+    return normalizeName(description.split('In an ')[1].split(' hospital')[0]);
+  } if (description.indexOf('In ') === 0) {
+    return description.split('In ')[1];
+  } else {
+    return 'Unknown';
+  }
 }
 
 export class TornModule {
@@ -154,12 +185,12 @@ export class TornModule {
     const reefChannelId = '1257858444300517517';
     const channel = client.channels.cache.get(reefChannelId) as TextChannel;
     setTimeout(async () => {
-      const info = await this.tornCache.get(UpdateType.Faction, /* id= */ 51961) as IFaction;
+      const info = await this.tornCache.get(UpdateType.Faction, /* id= */ FACTION_ID) as IFaction;
       const txt = await generateFactionSummary(this.tornCache, info);
       channel?.send(txt);
 
       setInterval(async () => {
-        const info = await this.tornCache.get(UpdateType.CompanyEmployee, /* id= */ 51961) as IFaction;
+        const info = await this.tornCache.get(UpdateType.CompanyEmployee, /* id= */ FACTION_ID) as IFaction;
         const txt = await generateFactionSummary(this.tornCache, info);
         channel?.send(txt);
       }, Duration.fromObject({day: 1}).as('milliseconds'));
@@ -177,21 +208,39 @@ export class TornModule {
     }
   }
 
+  async checkFlights(msg:any) {
+    const targetFactionId = 46144;
+    const factionInfo = await this.tornCache.get(UpdateType.Faction, targetFactionId) as IFaction;
+    console.log(factionInfo);
+    const rows = [];
+    const countries: {[n: string]: number} = {};
+    for (const member of factionInfo.members) {
+      const loc = getLocation(member.status.description);
+      countries[loc] = countries[loc] || 0;
+      countries[loc]++;
+    }
+    for (let c in countries) {
+      rows.push(`${c} : ${countries[c]}`);
+    }
+    msg.channel.send(rows.join('\n'));
+  }
+
   // hi
   async checkRevives(msg:any) {
     const tsInfo = await readTornStatsInfo();
     const yataInfo = await readYataFactionInfo();
     console.log(yataInfo);
-    const factionId = 51961;
-    const factionInfo = await this.tornCache.get(UpdateType.Faction, factionId) as IFaction;
+    const factionInfo = await this.tornCache.get(UpdateType.Faction, FACTION_ID) as IFaction;
     let counter =0;
+    let counterNotRevivable =0;
     for (const member of factionInfo.members) {
       const txt = [];
       const userInfo = await this.tornCache.get(UpdateType.User, parseInt(member.id)) as IUser;
       if (userInfo.revivable == 0) {
         counter += 1;
       } else {
-        txt.push(`${userInfo.name} is revivable ${userInfo.revivable}`);
+        counterNotRevivable+= 1
+        // txt.push(`${userInfo.name} is revivable ${userInfo.revivable}`);
       }
 
       const tsMemberInfo = tsInfo.members[member.id];
@@ -211,6 +260,7 @@ export class TornModule {
       }
     }
     msg.channel.send(`Found ${counter} members with revives disabled.`);
+    msg.channel.send(`Found ${counterNotRevivable} members who are revivable by Scrattch.`);
   }
 
   async verify(msg: any) {
