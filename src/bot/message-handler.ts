@@ -4,21 +4,71 @@ import {bakeryStats, giftPastry} from '../modules/bakery/bakery';
 import {extractDiscordId, getChannel} from '../utils/discord-utils';
 import JSONdb from 'simple-json-db';
 import { TornModule } from '../modules/torn/torn_module';
+import { AiModule } from '../modules/ai/ollama';
 import { Db } from '../utils/db';
+import {Message as OllamaMessage} from 'ollama'
 
 
 let bakeryDb = new JSONdb('/app/db/bakery-data.json');
 
+// https://discord.js.org/docs/packages/discord.js/14.14.1/GuildMessageManager:Class#fetch
+
 const ADMIN_SERVERS = ['906362118914330694'];
-const PATTIES_ID = '<@!957473918887792700>';
+// const PATTIES_ID = '<@!957473918887792700>';
+const PATTIES_ID = '957473918887792700';
+const DEEPSEEK_INTERACTIVE = '1345507783910621305';
 const VANGUARD_ASSASSIN_SERVER_ID = '1253005595779272816';
 
-export async function onMessage(redis: Db, tornModule: TornModule, msg: any) {
+async function sendMessageIterator(msg: any, replyIterator: AsyncIterable<string>) {
+    for await (const r of replyIterator) {
+      if (!r || r.trim().length == 0) {
+        console.log('invalid msg ', r);
+        continue;
+      }
+      msg.channel.send(r);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+}
+
+export async function onMessage(redis: Db, ollama: AiModule, tornModule: TornModule, msg: any) {
+  if (msg.author.bot) {
+    return;
+  }
+
   const text = msg.content;
   const isAdmin = ADMIN_SERVERS.indexOf(msg.guildId) !== -1;
   const [command, arg1, arg2] = text.split(" ");
 
-  if (msg.author.bot) {
+  if (msg.channel.id == DEEPSEEK_INTERACTIVE) {
+    const now = Date.now();
+    const MAX_TIME_ELAPSED = 20 * 60 * 1000;
+    const msgArray: Array<any> = await msg.channel.messages.fetch({limit: 100});
+    const conversation = msgArray.reverse().reduce((memo, m) => {
+      if (now - m.createdTimestamp > MAX_TIME_ELAPSED) {
+        return memo;
+      }
+      if (m.content.indexOf('[info]') >= 0 || m.content == '<think>' || m.content == '</think>') {
+        return memo;
+      }
+
+      if (m.author.id === PATTIES_ID) {
+        memo.push({
+          role: 'assistant',
+          content: m.content
+        }); 
+      } else if (m.author.id === msg.author.id) {
+        if (m.content == 'reset') {
+          return [];
+        }
+        memo.push({
+          role: 'user',
+          content: m.content
+        }); 
+      }
+      return memo;
+    }, []);
+    const replyIterator = ollama.chat(conversation);
+    sendMessageIterator(msg, replyIterator);
     return;
   }
 
@@ -42,6 +92,13 @@ export async function onMessage(redis: Db, tornModule: TornModule, msg: any) {
   }
   if (command == '!echo') {
     msg.channel.send(`\`\`\`${JSON.stringify(msg)}\`\`\``);
+    return;
+  }
+
+  if (command === "!ai") {
+    const prompt = text.slice(3);
+    const replyIterator = await ollama.generate(prompt);
+    sendMessageIterator(msg, replyIterator);
     return;
   }
 

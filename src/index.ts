@@ -1,6 +1,7 @@
 
 import {Client, Intents, Invite, Message} from 'discord.js';
 import {TornModule} from './modules/torn/torn_module';
+import {AiModule} from './modules/ai/ollama';
 import {createClient, RedisClientType} from 'redis';
 import {onMessage} from './bot/message-handler';
 import JSONdb from 'simple-json-db';
@@ -67,7 +68,7 @@ async function init() {
   tornModule.setDiscordClient(discordClient);
 
   discordClient.on('message', (msg: Message) => {
-    onMessage(tornDb, tornModule, msg);
+    onMessage(tornDb, new AiModule(), tornModule, msg);
   });
 }
 
