@@ -19,7 +19,7 @@ const ADMIN_SERVERS = ['906362118914330694'];
 const PATTIES_ID = '957473918887792700';
 const CHANNEL_ITALIA_ADVANCED = '1345830090780704799';
 const CHANNEL_ITALIA_BEGINNER = '1345897179084099645';
-const DEEPSEEK_INTERACTIVE = '1345507783910621305';
+const CHANNEL_DEEPSEEK = '1345507783910621305';
 const VANGUARD_ASSASSIN_SERVER_ID = '1253005595779272816';
 
 async function getConversation(msg: any): Promise<OllamaMessage[]> {
@@ -173,12 +173,13 @@ export async function onMessage(redis: Db, ollama: AiModule, tornModule: TornMod
     return;
   }
 
-  if ([CHANNEL_ITALIA_ADVANCED, CHANNEL_ITALIA_BEGINNER].includes(msg.channel.id)) {
+  if ([CHANNEL_ITALIA_ADVANCED, CHANNEL_ITALIA_BEGINNER, CHANNEL_DEEPSEEK].includes(msg.channel.id)) {
     await msg.channel.sendTyping();
     const conversation = await getConversation(msg);
     const CHANNEL_MAP: { [key: string]: Models } = {
       [CHANNEL_ITALIA_ADVANCED]: Models.ITALIA,
-      [CHANNEL_ITALIA_BEGINNER]: Models.ITALIA_BEGINNER
+      [CHANNEL_ITALIA_BEGINNER]: Models.ITALIA_BEGINNER,
+      [CHANNEL_DEEPSEEK]: Models.DEEP_SEEK
     };
     const model = CHANNEL_MAP[msg.channel.id];
     // Do chat
@@ -193,13 +194,6 @@ export async function onMessage(redis: Db, ollama: AiModule, tornModule: TornMod
     //   const filteredReplies = transformAsyncIterator(replyIterator, t.handleTranslation);
     //   sendMessageIterator(msg, filteredReplies);
     // }
-  }
-  if (msg.channel.id == DEEPSEEK_INTERACTIVE) {
-    await msg.channel.sendTyping();
-    const conversation = await getConversation(msg);
-    const replyIterator = ollama.chat(conversation, Models.DEEP_SEEK);
-    sendMessageIterator(msg, replyIterator);
-    return;
   }
 
   if (!isAdmin) {

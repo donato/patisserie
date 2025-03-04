@@ -1,8 +1,30 @@
-import { ChatResponse, GenerateResponse, Ollama, Message as OllamaMessage } from 'ollama'
+import { Stream, Writable } from 'stream';
+import { ChatResponse, GenerateResponse, Ollama, Message as OllamaMessage, ToolCall } from 'ollama'
 import { streamChatOutput, streamGenerateOutput } from './stream-utils'
 import { Models, BASE_MODELS, MODEL_TEMPERATURE, SYSTEM_PROMPTS } from './prompts';
+import { transformAsyncIterator } from './stream-utils';
 
 export const INFO_PREFIX = '[info]';
+
+function doToolCalls(tool_calls: Array<ToolCall>) {
+  const toolResults: Array<Array<string>> = [];
+  console.log(JSON.stringify(tool_calls));
+  for (const tool of tool_calls) {
+    let toolName = tool.function.name;
+    let output = '';
+    console.log('running ' + toolName);
+    switch (toolName) {
+      case 'generate_random_number':
+        const upperBound = tool.function.arguments['upper_bound'];
+        const number = Math.floor(Math.random() * parseInt(upperBound));
+        output = number.toString()
+    }
+    if (output) {
+      toolResults.push([JSON.stringify(tool), output]);
+    }
+  }
+  return toolResults[0][1];
+}
 
 function generate(ollama: Ollama, model: Models, prompt: string) {
   console.log(`ollama.generate [${model}]`);
@@ -15,7 +37,7 @@ function generate(ollama: Ollama, model: Models, prompt: string) {
     },
     stream: true,
     keep_alive: '1h'
-  // the type casting can be removed when bug is fixed https://github.com/ollama/ollama-js/issues/135
+    // the type casting can be removed when bug is fixed https://github.com/ollama/ollama-js/issues/135
   }) as unknown as Promise<AsyncIterableIterator<GenerateResponse>>;
 }
 
@@ -25,15 +47,38 @@ function chat(ollama: Ollama, model: Models, msgs: OllamaMessage[]) {
     role: 'system',
     content: SYSTEM_PROMPTS[model]
   });
+  let tools =
+    [{
+      type: 'function',
+      function: {
+        name: 'generate_random_number',
+        description: 'Used to generate a random number',
+        parameters: {
+          type: 'number',
+          required: ['upper_bound'],
+          properties: {
+            'upper_bound': {
+              type: 'number',
+              description: 'the max random number to generate',
+              // enum: ['s']
+            }
+          }
+        }
+      }
+    }];
+  if (model == Models.DEEP_SEEK) {
+    tools = [];
+  }
   return ollama.chat({
     model: BASE_MODELS[model],
     messages: msgs,
     options: {
       temperature: MODEL_TEMPERATURE[model]
     },
+    tools,
     stream: true,
     keep_alive: '1h',
-  // the type casting can be removed when bug is fixed https://github.com/ollama/ollama-js/issues/135
+    // the type casting can be removed when bug is fixed https://github.com/ollama/ollama-js/issues/135
   }) as unknown as Promise<AsyncIterableIterator<ChatResponse>>;
 }
 
@@ -97,13 +142,33 @@ export class AiModule {
     }
   }
 
-  async *chat(msgs: OllamaMessage[], model: Models) {
+  async *chat(msgs: OllamaMessage[], model: Models):AsyncIterable<string> {
     if (!msgs.length) { return; }
 
+    async function* doThing(module: AiModule, stream: AsyncIterableIterator<ChatResponse>) {
+      for await (const s of stream) {
+        if (s.message.tool_calls && s.message.tool_calls.length) {
+          const response = doToolCalls(s.message.tool_calls);
+          // handle tool stuff
+          msgs.push(s.message);
+          msgs.push({
+            role: 'tool',
+            content: response
+          });
+          console.log(msgs);
+          yield* module.chat(msgs, model);
+          break;
+        } else {
+          yield s;
+        }
+      }
+    }
     try {
       yield* initialize(this.ollama, model);
       const stream = await chat(this.ollama, model, msgs);
-      yield* streamChatOutput(stream, model);
+      const finalStream = doThing(this, stream);
+      // the will have tool messages and string messages
+      yield* streamChatOutput(finalStream, model);
     } catch (e) {
       yield* handleError(e);
     }

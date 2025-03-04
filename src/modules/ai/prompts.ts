@@ -78,25 +78,25 @@ Ask only one question at a time. If the user is confused, then provide a transla
 `;
 
 export const MODEL_TEMPERATURE = {
-  [Models.ITALIA_BEGINNER] : 0.4,
-  [Models.ITALIA] : 1.0,
-  [Models.ITALIA_PHRASES] : 0.2,
-  [Models.DEEP_SEEK] : 1.0,
-  [Models.DEEP_SEEK_SLOW] : 1.0,
+  [Models.ITALIA_BEGINNER]: 0.4,
+  [Models.ITALIA]: 1.0,
+  [Models.ITALIA_PHRASES]: 0.2,
+  [Models.DEEP_SEEK]: 1.0,
+  [Models.DEEP_SEEK_SLOW]: 1.0,
 }
 
 export const SYSTEM_PROMPTS = {
-  [Models.ITALIA] : IT_ADVANCED,
-  [Models.ITALIA_BEGINNER] : IT_BEGINNER,
-  [Models.ITALIA_PHRASES] : IT_PHRASES,
-  [Models.DEEP_SEEK] : '',
-  [Models.DEEP_SEEK_SLOW] : '',
+  [Models.ITALIA]: IT_ADVANCED,
+  [Models.ITALIA_BEGINNER]: IT_BEGINNER,
+  [Models.ITALIA_PHRASES]: IT_PHRASES,
+  [Models.DEEP_SEEK]: '',
+  [Models.DEEP_SEEK_SLOW]: '',
 }
 
 export const BASE_MODELS = {
-  [Models.ITALIA] : 'llama3.2:3b',
-  [Models.ITALIA_BEGINNER] : 'llama3.2:3b',
-  [Models.ITALIA_PHRASES] : 'llama3.2:3b',
-  [Models.DEEP_SEEK] : 'deepseek-r1:1.5b',
-  [Models.DEEP_SEEK_SLOW] : 'deepseek-r1:7b'
+  [Models.ITALIA]: 'llama3.2:3b',
+  [Models.ITALIA_BEGINNER]: 'llama3.2:3b',
+  [Models.ITALIA_PHRASES]: 'llama3.2:3b',
+  [Models.DEEP_SEEK]: 'deepseek-r1:1.5b',
+  [Models.DEEP_SEEK_SLOW]: 'deepseek-r1:7b'
 }
