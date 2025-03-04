@@ -1,144 +1,113 @@
 import { ChatResponse, GenerateResponse, Ollama, Message as OllamaMessage } from 'ollama'
+import { streamChatOutput, streamGenerateOutput } from './stream-utils'
+import { Models, BASE_MODELS, MODEL_TEMPERATURE, SYSTEM_PROMPTS } from './prompts';
+
+export const INFO_PREFIX = '[info]';
 
 
-const LLM_MODEL = 'deepseek-r1:1.5b';
-const LLM_MODEL_SLOW = 'deepseek-r1:7b';
 
-
-
-function generate(ollama: Ollama, prompt: string) {
-  console.log('doing chat.');
+function generate(ollama: Ollama, model: Models, prompt: string) {
+  console.log(`ollama.generate [${model}]`);
   return ollama.generate({
-    model: LLM_MODEL,
+    model: BASE_MODELS[model],
+    options: {
+      temperature: MODEL_TEMPERATURE[model],
+    },
+    system: SYSTEM_PROMPTS[model],
     stream: true,
     prompt: prompt,
     keep_alive: '1h'
   });
 }
-function interactiveGenerate(ollama: Ollama, msgs: OllamaMessage[]) {
-  console.log('doing chat.');
+
+function chat(ollama: Ollama, model: Models, msgs: OllamaMessage[]) {
+  console.log(`ollama.chat [${model}]`);
+  msgs.unshift({
+    role: 'system',
+    content: SYSTEM_PROMPTS[model]
+  });
   return ollama.chat({
-    model: LLM_MODEL,
+    model: BASE_MODELS[model],
     stream: true,
     messages: msgs,
     keep_alive: '1h'
   });
 }
 
-async function activeModel(ollama: Ollama) {
+async function activeModel(ollama: Ollama, model: Models) {
   const runningModels = await ollama.ps();
-  if (runningModels.models.length == 0) {
-    return false;
+  console.log(runningModels);
+  for (const m of runningModels.models) {
+    console.log(BASE_MODELS[model]);
+    if (m.name == BASE_MODELS[model]) {
+      return m.name;
+    }
   }
-  return runningModels.models[0].name;
+  return false;
 }
 
-async function* initialize(ollama: Ollama) {
-  let modelName;
+async function* initialize(ollama: Ollama, model: Models) {
+  let isActive;
   try {
-    modelName = await activeModel(ollama);
+    isActive = await activeModel(ollama, model);
   } catch (e) {
-    yield '[info] Unable to connect to the TenStep Gaming PC';
+    yield `${INFO_PREFIX} Unable to connect to the TenStep Gaming PC`;
     return;
   }
+  if (isActive) {
+    return;
+  }
+
   let retries = 0;
-  while (modelName == false) {
-    if (retries > 3) {
-      yield '[info] Stopping retrying.';
-      return;
-    }
-    yield '[info] Attempting to boot up a model...';
-    generate(ollama, 'test');
+  while (!isActive && retries < 3) {
+    yield `${INFO_PREFIX} Attempting to boot ${BASE_MODELS[model]}`;
+    generate(ollama, model, 'test');
 
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    modelName = await activeModel(ollama);
+    isActive = await activeModel(ollama, model);
+    retries++;
   }
-  yield `[info] Model ${modelName} running!`;
-}
-
-async function* streamChatOutput(chatReply: AsyncIterableIterator<ChatResponse>) {
-  let msgBuffer = '';
-  let isThinking = true;
-  yield '> Chain of Thought omitted';
-  for await (const json of chatReply) {
-    const newWord = json.message.content;
-    if (newWord == '</think>') {
-      isThinking = false;
-      continue;
-    }
-    if (isThinking) {
-      continue;
-    }
-    if (msgBuffer.length + newWord.length > 500) {
-      yield msgBuffer;
-      msgBuffer = newWord;
-      continue;
-    }
-    msgBuffer += newWord;
-    if (newWord.indexOf('\n') !== -1) {
-      yield msgBuffer;
-      msgBuffer = '';
-    }
-  }
-  if (msgBuffer.length) {
-    yield msgBuffer;
-  }
-}
-
-async function* streamOutput(chatReply: AsyncIterableIterator<GenerateResponse>) {
-  let msgBuffer = '';
-  for await (const json of chatReply) {
-    const newWord = json.response;
-    if (msgBuffer.length + newWord.length > 500) {
-      yield msgBuffer;
-      msgBuffer = newWord;
-      continue;
-    }
-    msgBuffer += newWord;
-    if (newWord.indexOf('\n') !== -1) {
-      yield msgBuffer;
-      msgBuffer = '';
-    }
-  }
-  if (msgBuffer.length) {
-    yield msgBuffer;
+  if (isActive) {
+    yield `${INFO_PREFIX} Model ${BASE_MODELS[model]} running!`;
+  } else {
+    yield `${INFO_PREFIX} Stopping retrying.`;
   }
 }
 
 function* handleError(e: unknown) {
   console.log(e);
   if (e instanceof Error) {
-    yield '[info] ' + e.message.toString();
+    yield `${INFO_PREFIX} ${e.message.toString()}`;
   } else {
-    yield '[info] Unknown error, check logs';
+    yield `${INFO_PREFIX} Unknown error, check logs`;
   }
 }
 
 export class AiModule {
 
-  async *generate(prompt: string) {
+  async *generate(prompt: string, model: Models) {
     const ollama = new Ollama({ host: 'http://192.168.2.132:11434' })
-    yield* initialize(ollama);
+    yield* initialize(ollama, model);
 
     try {
-      const chatReply = await generate(ollama, prompt);
+      const chatReply = await generate(ollama, model, prompt);
       // the type casting can be removed when bug is fixed https://github.com/ollama/ollama-js/issues/135
-      yield* streamOutput(chatReply as unknown as AsyncIterableIterator<GenerateResponse>);
+      yield* streamGenerateOutput(chatReply as unknown as AsyncIterableIterator<GenerateResponse>, model);
     } catch (e) {
       yield* handleError(e);
     }
   }
 
-  async *chat(msgs: OllamaMessage[]) {
+  async *chat(msgs: OllamaMessage[], model: Models) {
     if (!msgs.length) { return; }
     const ollama = new Ollama({ host: 'http://192.168.2.132:11434' })
-    yield* initialize(ollama);
+    yield* initialize(ollama, model);
 
     try {
-      const chatReply = await interactiveGenerate(ollama, msgs);
+      const chatReply = await chat(ollama, model, msgs);
       // the type casting can be removed when bug is fixed https://github.com/ollama/ollama-js/issues/135
-      yield* streamChatOutput(chatReply as unknown as AsyncIterableIterator<ChatResponse>);
+      yield* streamChatOutput(chatReply as unknown as AsyncIterableIterator<ChatResponse>, model);
     } catch (e) {
       yield* handleError(e);
     }
