@@ -3,7 +3,7 @@ import {Client, Intents, Invite, Message} from 'discord.js';
 import {TornModule} from './modules/torn/torn_module';
 import {AiModule} from './modules/ai/ollama';
 import {createClient, RedisClientType} from 'redis';
-import {onMessage} from './bot/message-handler';
+import {onMessage} from './message-handler';
 import JSONdb from 'simple-json-db';
 import {Db} from './utils/db';
 import {createAppendOnlyLog, AppendOnlyLog} from './modules/torn/append_only_log';

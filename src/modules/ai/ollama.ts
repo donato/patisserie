@@ -4,20 +4,19 @@ import { Models, BASE_MODELS, MODEL_TEMPERATURE, SYSTEM_PROMPTS } from './prompt
 
 export const INFO_PREFIX = '[info]';
 
-
-
 function generate(ollama: Ollama, model: Models, prompt: string) {
   console.log(`ollama.generate [${model}]`);
   return ollama.generate({
     model: BASE_MODELS[model],
+    system: SYSTEM_PROMPTS[model],
+    prompt: prompt,
     options: {
       temperature: MODEL_TEMPERATURE[model],
     },
-    system: SYSTEM_PROMPTS[model],
     stream: true,
-    prompt: prompt,
     keep_alive: '1h'
-  });
+  // the type casting can be removed when bug is fixed https://github.com/ollama/ollama-js/issues/135
+  }) as unknown as Promise<AsyncIterableIterator<GenerateResponse>>;
 }
 
 function chat(ollama: Ollama, model: Models, msgs: OllamaMessage[]) {
@@ -28,36 +27,32 @@ function chat(ollama: Ollama, model: Models, msgs: OllamaMessage[]) {
   });
   return ollama.chat({
     model: BASE_MODELS[model],
-    stream: true,
     messages: msgs,
-    keep_alive: '1h'
-  });
+    options: {
+      temperature: MODEL_TEMPERATURE[model]
+    },
+    stream: true,
+    keep_alive: '1h',
+  // the type casting can be removed when bug is fixed https://github.com/ollama/ollama-js/issues/135
+  }) as unknown as Promise<AsyncIterableIterator<ChatResponse>>;
 }
 
-async function activeModel(ollama: Ollama, model: Models) {
+async function isModelActive(ollama: Ollama, model: Models) {
   const runningModels = await ollama.ps();
-  console.log(runningModels);
-  for (const m of runningModels.models) {
-    console.log(BASE_MODELS[model]);
-    if (m.name == BASE_MODELS[model]) {
-      return m.name;
-    }
-  }
-  return false;
+  return runningModels.models.some(
+    m => m.name == BASE_MODELS[model]);
 }
 
 async function* initialize(ollama: Ollama, model: Models) {
-  let isActive;
   try {
-    isActive = await activeModel(ollama, model);
+    if (await isModelActive(ollama, model)) {
+      return;
+    }
   } catch (e) {
-    yield `${INFO_PREFIX} Unable to connect to the TenStep Gaming PC`;
-    return;
-  }
-  if (isActive) {
-    return;
+    throw new Error("Unable to connect to TenStep Gaming PC");
   }
 
+  let isActive = false;
   let retries = 0;
   while (!isActive && retries < 3) {
     yield `${INFO_PREFIX} Attempting to boot ${BASE_MODELS[model]}`;
@@ -65,7 +60,7 @@ async function* initialize(ollama: Ollama, model: Models) {
 
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    isActive = await activeModel(ollama, model);
+    isActive = await isModelActive(ollama, model);
     retries++;
   }
   if (isActive) {
@@ -78,22 +73,25 @@ async function* initialize(ollama: Ollama, model: Models) {
 function* handleError(e: unknown) {
   console.log(e);
   if (e instanceof Error) {
-    yield `${INFO_PREFIX} ${e.message.toString()}`;
+    yield `${INFO_PREFIX} Error: ${e.message.toString()}`;
   } else {
     yield `${INFO_PREFIX} Unknown error, check logs`;
   }
 }
 
 export class AiModule {
+  private readonly ollama: Ollama;
+
+  constructor() {
+    // todo(): Add a queue and/or lock
+    this.ollama = new Ollama({ host: 'http://192.168.2.132:11434' })
+  }
 
   async *generate(prompt: string, model: Models) {
-    const ollama = new Ollama({ host: 'http://192.168.2.132:11434' })
-    yield* initialize(ollama, model);
-
     try {
-      const chatReply = await generate(ollama, model, prompt);
-      // the type casting can be removed when bug is fixed https://github.com/ollama/ollama-js/issues/135
-      yield* streamGenerateOutput(chatReply as unknown as AsyncIterableIterator<GenerateResponse>, model);
+      yield* initialize(this.ollama, model);
+      const stream = await generate(this.ollama, model, prompt);
+      yield* streamGenerateOutput(stream, model);
     } catch (e) {
       yield* handleError(e);
     }
@@ -101,13 +99,11 @@ export class AiModule {
 
   async *chat(msgs: OllamaMessage[], model: Models) {
     if (!msgs.length) { return; }
-    const ollama = new Ollama({ host: 'http://192.168.2.132:11434' })
-    yield* initialize(ollama, model);
 
     try {
-      const chatReply = await chat(ollama, model, msgs);
-      // the type casting can be removed when bug is fixed https://github.com/ollama/ollama-js/issues/135
-      yield* streamChatOutput(chatReply as unknown as AsyncIterableIterator<ChatResponse>, model);
+      yield* initialize(this.ollama, model);
+      const stream = await chat(this.ollama, model, msgs);
+      yield* streamChatOutput(stream, model);
     } catch (e) {
       yield* handleError(e);
     }

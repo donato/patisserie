@@ -1,15 +1,13 @@
-// import {limitedEvaluate} from '../bot/bot-math';
-// import {renderHelp} from '../utils/rendering';
-import { bakeryStats, giftPastry } from '../modules/bakery/bakery';
-import { extractDiscordId, getChannel } from '../utils/discord-utils';
+import { bakeryStats, giftPastry } from './modules/bakery/bakery';
+import { extractDiscordId, getChannel } from './utils/discord-utils';
 import JSONdb from 'simple-json-db';
-import { TornModule } from '../modules/torn/torn_module';
-import { AiModule, INFO_PREFIX } from '../modules/ai/ollama';
-import { Models } from '../modules/ai/prompts';
-import { Translation } from '../modules/ai/language';
-import { Db } from '../utils/db';
+import { TornModule } from './modules/torn/torn_module';
+import { AiModule, INFO_PREFIX } from './modules/ai/ollama';
+import { Models } from './modules/ai/prompts';
+import { Translation } from './modules/ai/language';
+import { Db } from './utils/db';
 import { Message as OllamaMessage } from 'ollama'
-import { sendMessageIterator, transformAsyncIterator } from '../modules/ai/stream-utils';
+import { sendMessageIterator, transformAsyncIterator } from './modules/ai/stream-utils';
 
 
 let bakeryDb = new JSONdb('/app/db/bakery-data.json');
@@ -188,15 +186,16 @@ export async function onMessage(redis: Db, ollama: AiModule, tornModule: TornMod
     replyIterator = ollama.chat(conversation, model);
     const fullMessage = await sendMessageIterator(msg, replyIterator);
     // do helpful translation
-    if (msg.channel.id == CHANNEL_ITALIA_BEGINNER && fullMessage.length > 10) {
-      console.log('translate of: ' + fullMessage);
-      replyIterator = ollama.generate(fullMessage, Models.ITALIA_PHRASES)
-      const t = new Translation();
-      const filteredReplies = transformAsyncIterator(replyIterator, t.handleTranslation);
-      sendMessageIterator(msg, filteredReplies);
-    }
+    // if (msg.channel.id == CHANNEL_ITALIA_BEGINNER && fullMessage.length > 10) {
+    //   console.log('translate of: ' + fullMessage);
+    //   replyIterator = ollama.generate(fullMessage, Models.ITALIA_PHRASES)
+    //   const t = new Translation();
+    //   const filteredReplies = transformAsyncIterator(replyIterator, t.handleTranslation);
+    //   sendMessageIterator(msg, filteredReplies);
+    // }
   }
   if (msg.channel.id == DEEPSEEK_INTERACTIVE) {
+    await msg.channel.sendTyping();
     const conversation = await getConversation(msg);
     const replyIterator = ollama.chat(conversation, Models.DEEP_SEEK);
     sendMessageIterator(msg, replyIterator);

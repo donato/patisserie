@@ -1,4 +1,4 @@
-const {onMessage} = require('./bot/message-handler');
+const {onMessage} = require('./message-handler');
 const {loadJson} = require('./utils/file-utils');
 
 const artiPromise = loadJson('./db/artis.json');
