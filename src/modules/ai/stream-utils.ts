@@ -7,7 +7,7 @@ export async function* transformAsyncIterator<T, V>(iterator: AsyncIterableItera
   for await (const item of iterator) {
     const result = await transformFn(item);
     // break the chain if the transformation ever returns false
-    if (result == false) {
+    if (result === false) {
       break;
     }
     yield result;
