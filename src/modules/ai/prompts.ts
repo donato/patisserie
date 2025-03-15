@@ -93,10 +93,13 @@ export const SYSTEM_PROMPTS = {
   [Models.DEEP_SEEK_SLOW]: '',
 }
 
+const LLAMA = 'llama3.2:3b';
+const GEMMA = 'gemma3:4b';
+const DEF_MODEL = GEMMA;
 export const BASE_MODELS = {
-  [Models.ITALIA]: 'llama3.2:3b',
-  [Models.ITALIA_BEGINNER]: 'llama3.2:3b',
-  [Models.ITALIA_PHRASES]: 'llama3.2:3b',
+  [Models.ITALIA]: DEF_MODEL,
+  [Models.ITALIA_BEGINNER]: DEF_MODEL,
+  [Models.ITALIA_PHRASES]: DEF_MODEL,
   [Models.DEEP_SEEK]: 'deepseek-r1:1.5b',
   [Models.DEEP_SEEK_SLOW]: 'deepseek-r1:7b'
 }

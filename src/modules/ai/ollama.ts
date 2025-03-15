@@ -1,30 +1,9 @@
-import { Stream, Writable } from 'stream';
 import { ChatResponse, GenerateResponse, Ollama, Message as OllamaMessage, ToolCall } from 'ollama'
 import { streamChatOutput, streamGenerateOutput } from './stream-utils'
 import { Models, BASE_MODELS, MODEL_TEMPERATURE, SYSTEM_PROMPTS } from './prompts';
-import { transformAsyncIterator } from './stream-utils';
+import { executeToolCalls, getToolDefinitions } from './tools';
 
 export const INFO_PREFIX = '[info]';
-
-function doToolCalls(tool_calls: Array<ToolCall>) {
-  const toolResults: Array<Array<string>> = [];
-  console.log(JSON.stringify(tool_calls));
-  for (const tool of tool_calls) {
-    let toolName = tool.function.name;
-    let output = '';
-    console.log('running ' + toolName);
-    switch (toolName) {
-      case 'generate_random_number':
-        const upperBound = tool.function.arguments['upper_bound'];
-        const number = Math.floor(Math.random() * parseInt(upperBound));
-        output = number.toString()
-    }
-    if (output) {
-      toolResults.push([JSON.stringify(tool), output]);
-    }
-  }
-  return toolResults[0][1];
-}
 
 function generate(ollama: Ollama, model: Models, prompt: string) {
   console.log(`ollama.generate [${model}]`);
@@ -47,25 +26,7 @@ function chat(ollama: Ollama, model: Models, msgs: OllamaMessage[]) {
     role: 'system',
     content: SYSTEM_PROMPTS[model]
   });
-  let tools =
-    [{
-      type: 'function',
-      function: {
-        name: 'generate_random_number',
-        description: 'Used to generate a random number',
-        parameters: {
-          type: 'number',
-          required: ['upper_bound'],
-          properties: {
-            'upper_bound': {
-              type: 'number',
-              description: 'the max random number to generate',
-              // enum: ['s']
-            }
-          }
-        }
-      }
-    }];
+  let tools = getToolDefinitions();
   if (model == Models.DEEP_SEEK) {
     tools = [];
   }
@@ -148,14 +109,16 @@ export class AiModule {
     async function* doThing(module: AiModule, stream: AsyncIterableIterator<ChatResponse>) {
       for await (const s of stream) {
         if (s.message.tool_calls && s.message.tool_calls.length) {
-          const response = doToolCalls(s.message.tool_calls);
+          const toolResults = await executeToolCalls(s.message.tool_calls);
           // handle tool stuff
           msgs.push(s.message);
-          msgs.push({
-            role: 'tool',
-            content: response
+          toolResults.forEach(r => {
+            msgs.push({
+              role: 'tool',
+              content: r
+            });
           });
-          console.log(msgs);
+          // console.log(msgs);
           yield* module.chat(msgs, model);
           break;
         } else {

@@ -91,7 +91,7 @@ export async function onMessage(redis: Db, ollama: AiModule, tornModule: TornMod
     return;
   }
   if (command === "!aislow") {
-    const prompt = text.slice(3);
+    const prompt = text.replace(command, '');
     const replyIterator = await ollama.generate(prompt, Models.DEEP_SEEK_SLOW);
     await sendMessageIterator(msg, replyIterator);
     return;
