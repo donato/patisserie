@@ -6,7 +6,10 @@ import { executeToolCalls, createToolPrompt, triggerToolCall, getToolDefinitions
 export const INFO_PREFIX = '[info]';
 
 function generate(ollama: Ollama, model: Models, prompt: string) {
+  console.log('------------------------------------');
   console.log(`ollama.generate [${model}]`);
+  console.log(prompt);
+  console.log('------------------------------------');
   return ollama.generate({
     model: BASE_MODELS[model],
     system: SYSTEM_PROMPTS[model],
@@ -35,8 +38,7 @@ function chat(ollama: Ollama, model: Models, msgs: OllamaMessage[]) {
     model: BASE_MODELS[model],
     messages: msgs,
     options: {
-      temperature: MODEL_TEMPERATURE[model],
-      // stop: ['Observation:', 'Final Answer:'],
+      temperature: MODEL_TEMPERATURE[model]
     },
     tools,
     stream: true,
@@ -44,7 +46,6 @@ function chat(ollama: Ollama, model: Models, msgs: OllamaMessage[]) {
     // the type casting can be removed when bug is fixed https://github.com/ollama/ollama-js/issues/135
   }) as unknown as Promise<AsyncIterableIterator<ChatResponse>>;
 }
-
 
 async function isModelActive(ollama: Ollama, model: Models) {
   const runningModels = await ollama.ps();
@@ -88,33 +89,30 @@ function* handleError(e: unknown) {
   }
 }
 
-async function* handleAgenticLoop(prompt: string, module: AiModule, stream:GenerateResponse, model: Models):AsyncIterableIterator<string> {
+function parseAgentResponse(stream: GenerateResponse): ToolCall | string {
   const c = stream.response;
   const lines = c.split('\n').filter(l => l != '');
-  const finalLine = lines[lines.length-1];
-  console.log(lines);
-  console.log('final line is: ' + finalLine);
+  const finalLine = lines[lines.length - 1];
   if (finalLine && finalLine.includes('Action:')) {
     try {
       const json = JSON.parse(finalLine.split('Action: ')[1]);
-      const toolCall :ToolCall = {
+      const toolCall: ToolCall = {
         function: {
           name: json['function_name'],
           arguments: json['arguments']
         }
       };
-      const toolResults = await triggerToolCall(toolCall);
-      const newPrompt = prompt + c + `Observation: ${toolResults}\n`;
-      yield* module.generate(newPrompt, model);
-    } catch(e) {
+      return toolCall
+    } catch (e) {
+      console.log(c);
       console.log(e);
-      yield c;
+      return 'Error';
     }
   } else if (finalLine && finalLine.includes('Final Answer')) {
-    yield finalLine.split('Final Answer: ')[1];
+    return finalLine.split('Final Answer: ')[1];
   } else {
-    console.log('no action found, exiting');
-    yield c;
+    console.log('No action found, exiting');
+    return 'Unexpected result: ' + c;
   }
 }
 
@@ -126,25 +124,32 @@ export class AiModule {
     this.ollama = new Ollama({ host: 'http://192.168.2.132:11434' })
   }
 
-  async *generate(prompt: string, model: Models):AsyncIterableIterator<string> {
+  async *generate(prompt: string, model: Models): AsyncIterableIterator<string> {
     try {
       // TODO - think of better way to avoid adding the tools many times with recursion
       if (model == Models.AGENT && !prompt.includes('Available Tools:')) {
-        prompt += `\n${createToolPrompt(getToolDefinitions())}\n`;
+        // prompt = `${prompt}\n\n\n${createToolPrompt(getToolDefinitions())}`;
+        prompt = `${createToolPrompt(getToolDefinitions())}Question: ${prompt}\n`;
       }
-      console.log('------------------------------------');
-      console.log(prompt);
-      console.log('------------------------------------');
       yield* initialize(this.ollama, model);
-      const response = await generate(this.ollama, model, prompt);
-      const result = await handleAgenticLoop(prompt, this, response, model)
-      yield *streamGenerateOutput(result);
+      while (true) {
+        const response = await generate(this.ollama, model, prompt);
+
+        const result = parseAgentResponse(response)
+        if (typeof result == "string") {
+          yield result;
+          return;
+        } else {
+          const toolResults = await triggerToolCall(result);
+          prompt += response.response + `Observation: ${toolResults}\n`;
+        }
+      }
     } catch (e) {
       yield* handleError(e);
     }
   }
 
-  async *chat(msgs: OllamaMessage[], model: Models):AsyncIterable<string> {
+  async *chat(msgs: OllamaMessage[], model: Models): AsyncIterable<string> {
     if (!msgs.length) { return; }
 
     async function* handleToolCalls(module: AiModule, stream: AsyncIterableIterator<ChatResponse>) {

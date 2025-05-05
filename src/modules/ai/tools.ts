@@ -96,9 +96,9 @@ export function executeToolCalls(toolCalls: ToolCall[]) {
 }
 
 export function createToolPrompt(tools:Tool[]) {
-  return '\n\nAvailable Tools:\n' + tools.map(t => {
+  return 'Available Tools:\n' + tools.map(t => {
     const {parameters, name, description} = t.function;
     const args = JSON.stringify(parameters); 
     return `  ${name}: ${description}. Args: ${args}`;
-  }).join('\n');
+  }).join('\n') + `\n\n\n`;
 }
