@@ -1,4 +1,5 @@
 export enum Models {
+  AGENT = 'granite3.3:8b',
   DEEP_SEEK = 'deepseek',
   DEEP_SEEK_SLOW = 'deepseek-slow',
   ITALIA_BEGINNER = 'it-beginner',
@@ -77,12 +78,28 @@ Sono <name>
 Ask only one question at a time. If the user is confused, then provide a translation of the text to their native language.
 `;
 
+const AGENT_PROMPT = `
+ALWAYS use the following format:
+
+Question: the input question you must answer
+Thought: your plan for answering the users question. you should always think about one action to take. Only one action at a time in this format:
+Action: {"function_name": "...", "arguments": "..."}
+Observation: the result of the action. This Observation is unique, complete, and the source of truth.
+... (this Thought/Action/Observation pattern can repeat N times, you should take several steps when needed. The action must be formatted in JSON and only use a SINGLE action at a time.)
+... (when you have all the necessary information, you must always end your output with the following format)
+Thought: I now know the final answer
+Final Answer: the final answer to the original input question
+
+Now begin! Reminder to ALWAYS use the exact characters 'Final Answer:' when you provide a definitive answer. 
+`;
+
 export const MODEL_TEMPERATURE = {
   [Models.ITALIA_BEGINNER]: 0.4,
   [Models.ITALIA]: 1.0,
   [Models.ITALIA_PHRASES]: 0.2,
   [Models.DEEP_SEEK]: 1.0,
   [Models.DEEP_SEEK_SLOW]: 1.0,
+  [Models.AGENT]: 1.0
 }
 
 export const SYSTEM_PROMPTS = {
@@ -91,12 +108,15 @@ export const SYSTEM_PROMPTS = {
   [Models.ITALIA_PHRASES]: IT_PHRASES,
   [Models.DEEP_SEEK]: '',
   [Models.DEEP_SEEK_SLOW]: '',
+  [Models.AGENT]: AGENT_PROMPT,
 }
 
+const GRANITE = 'granite3.3:8b';
 const LLAMA = 'llama3.2:3b';
 const GEMMA = 'gemma3:4b';
 const DEF_MODEL = GEMMA;
 export const BASE_MODELS = {
+  [Models.AGENT]: GRANITE,
   [Models.ITALIA]: DEF_MODEL,
   [Models.ITALIA_BEGINNER]: DEF_MODEL,
   [Models.ITALIA_PHRASES]: DEF_MODEL,

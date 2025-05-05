@@ -20,6 +20,7 @@ const PATTIES_ID = '957473918887792700';
 const CHANNEL_ITALIA_ADVANCED = '1345830090780704799';
 const CHANNEL_ITALIA_BEGINNER = '1345897179084099645';
 const CHANNEL_DEEPSEEK = '1345507783910621305'; // interactive channel
+const CHANNEL_AGENT = '1368952263627903109';
 const VANGUARD_ASSASSIN_SERVER_ID = '1253005595779272816';
 
 async function getConversation(msg: any): Promise<OllamaMessage[]> {
@@ -179,13 +180,20 @@ export async function onMessage(redis: Db, ollama: AiModule, tornModule: TornMod
     return;
   }
 
+  if (msg.channel.id == CHANNEL_AGENT) {
+    await msg.channel.sendTyping();
+    const replyIterator = await ollama.generate(text, Models.AGENT);
+    await sendMessageIterator(msg, replyIterator);
+    return;
+  }
+
   if ([CHANNEL_ITALIA_ADVANCED, CHANNEL_ITALIA_BEGINNER, CHANNEL_DEEPSEEK].includes(msg.channel.id)) {
     await msg.channel.sendTyping();
     const conversation = await getConversation(msg);
     const CHANNEL_MAP: { [key: string]: Models } = {
       [CHANNEL_ITALIA_ADVANCED]: Models.ITALIA,
       [CHANNEL_ITALIA_BEGINNER]: Models.ITALIA_BEGINNER,
-      [CHANNEL_DEEPSEEK]: Models.DEEP_SEEK
+      [CHANNEL_DEEPSEEK]: Models.DEEP_SEEK,
     };
     const model = CHANNEL_MAP[msg.channel.id];
     // Do chat

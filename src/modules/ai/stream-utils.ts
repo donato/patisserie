@@ -30,19 +30,18 @@ export async function sendMessageIterator(msg: any, replyIterator: AsyncIterable
   return stringBuilder;
 }
 
-export async function* streamChatOutput(stream: AsyncIterableIterator<ChatResponse|string>, model: Models) {
+export async function* streamChatOutput(stream: AsyncIterableIterator<ChatResponse|string>) {
   const map = (json: ChatResponse|string) => typeof json == 'string' ? json : json.message.content;
   const stringStream = transformAsyncIterator(stream, map);
-  yield* streamOutput(stringStream, model);
+  yield* streamOutput(stringStream);
 }
 
-export async function* streamGenerateOutput(stream: AsyncIterableIterator<GenerateResponse>, model: Models) {
-  const map = (json: GenerateResponse) => json.response;
-  yield* streamOutput(transformAsyncIterator(stream, map), model);
+export async function* streamGenerateOutput(stream: AsyncIterableIterator<string>) {
+  yield* streamOutput(stream);
 }
 
 // Internal helper function
-async function* streamOutput(stream: AsyncIterable<string>, model: Models) {
+async function* streamOutput(stream: AsyncIterable<string>) {
   let msgBuffer = '';
   // let isThinking = isThinkingFn(model);
   // if (isThinking) {
@@ -64,7 +63,6 @@ async function* streamOutput(stream: AsyncIterable<string>, model: Models) {
     msgBuffer += newWord;
     // should we flush on newlines?
     if (newWord.indexOf('\n') !== -1 && msgBuffer.length > 100) {
-      console.log(msgBuffer, msgBuffer.length);
       yield msgBuffer;
       msgBuffer = '';
     }

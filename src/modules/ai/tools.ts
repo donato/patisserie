@@ -1,4 +1,5 @@
 import { Tool, ToolCall } from 'ollama';
+import { tavily } from "@tavily/core";
 
 
 type ToolCallArgs = { [key: string]: any };
@@ -12,7 +13,7 @@ export const DiceTool: MyTool = {
     type: 'function',
     function: {
       name: 'generate_random_number',
-      description: 'Used to generate a random number',
+      description: 'Generates a random number between 0 and an upper bound',
       parameters: {
         type: 'number',
         required: ['upper_bound'],
@@ -33,15 +34,54 @@ export const DiceTool: MyTool = {
   },
 };
 
+// Step 1. Instantiating your TavilyClient
+const tvly = tavily({ apiKey: "tvly-YOUR_API_KEY" });
+export const InternetSearch : MyTool = {
+  toolDefinition: {
+    type: 'function',
+    function: {
+      name: 'internet_search',
+      description: 'Used to search the internet for more information',
+      parameters: {
+        type: 'string',
+        required: ['search_query'],
+        properties: {
+          'search_query': {
+            type: 'string',
+            description: 'The search query',
+            // enum: ['s']
+          }
+        }
+      }
+    }
+  },
+  execute: async (args: ToolCallArgs) => {
+    const query = args['search_query'];
+
+    console.log('tv search: '+ query);
+    const options =  {};
+    const response = await tvly.search(query, options);
+
+    let sb = '';
+    for (let result of response.results) {
+        sb += `URL: ${result.url}`;
+        sb += `\n`;
+        sb += `Raw Content: ${result.rawContent}\n`;
+        sb += `\n\n`;
+    }
+    console.log (sb);
+    return Promise.resolve(sb);
+  },
+}
+
 const ALL_TOOLS = [DiceTool];
 
 export function getToolDefinitions() {
   return ALL_TOOLS.map(t => t.toolDefinition);
 }
 
-function triggerToolCall(call: ToolCall) {
+export function triggerToolCall(call: ToolCall) {
   for (const t of ALL_TOOLS) {
-    console.log(t.toolDefinition.function.name, call.function.name )
     if (t.toolDefinition.function.name == call.function.name) {
       return t.execute(call.function.arguments);
     }
@@ -51,7 +91,14 @@ function triggerToolCall(call: ToolCall) {
 
 export function executeToolCalls(toolCalls: ToolCall[]) {
   const toolResults: Array<Array<string>> = [];
-  console.log(JSON.stringify(toolCalls));
   const promises = toolCalls.map(triggerToolCall);
   return Promise.all(promises);
+}
+
+export function createToolPrompt(tools:Tool[]) {
+  return '\n\nAvailable Tools:\n' + tools.map(t => {
+    const {parameters, name, description} = t.function;
+    const args = JSON.stringify(parameters); 
+    return `  ${name}: ${description}. Args: ${args}`;
+  }).join('\n');
 }

@@ -1,7 +1,7 @@
-import { ChatResponse, GenerateResponse, Ollama, Message as OllamaMessage, ToolCall } from 'ollama'
+import { ChatResponse, GenerateResponse, Ollama, Message as OllamaMessage, Tool, ToolCall } from 'ollama'
 import { streamChatOutput, streamGenerateOutput } from './stream-utils'
 import { Models, BASE_MODELS, MODEL_TEMPERATURE, SYSTEM_PROMPTS } from './prompts';
-import { executeToolCalls, getToolDefinitions } from './tools';
+import { executeToolCalls, createToolPrompt, triggerToolCall, getToolDefinitions } from './tools';
 
 export const INFO_PREFIX = '[info]';
 
@@ -13,11 +13,12 @@ function generate(ollama: Ollama, model: Models, prompt: string) {
     prompt: prompt,
     options: {
       temperature: MODEL_TEMPERATURE[model],
+      stop: ['Observation:'],
     },
-    stream: true,
+    stream: false,
     keep_alive: '1h'
     // the type casting can be removed when bug is fixed https://github.com/ollama/ollama-js/issues/135
-  }) as unknown as Promise<AsyncIterableIterator<GenerateResponse>>;
+  }) as unknown as Promise<GenerateResponse>;
 }
 
 function chat(ollama: Ollama, model: Models, msgs: OllamaMessage[]) {
@@ -34,7 +35,8 @@ function chat(ollama: Ollama, model: Models, msgs: OllamaMessage[]) {
     model: BASE_MODELS[model],
     messages: msgs,
     options: {
-      temperature: MODEL_TEMPERATURE[model]
+      temperature: MODEL_TEMPERATURE[model],
+      // stop: ['Observation:', 'Final Answer:'],
     },
     tools,
     stream: true,
@@ -42,6 +44,7 @@ function chat(ollama: Ollama, model: Models, msgs: OllamaMessage[]) {
     // the type casting can be removed when bug is fixed https://github.com/ollama/ollama-js/issues/135
   }) as unknown as Promise<AsyncIterableIterator<ChatResponse>>;
 }
+
 
 async function isModelActive(ollama: Ollama, model: Models) {
   const runningModels = await ollama.ps();
@@ -85,6 +88,36 @@ function* handleError(e: unknown) {
   }
 }
 
+async function* handleAgenticLoop(prompt: string, module: AiModule, stream:GenerateResponse, model: Models):AsyncIterableIterator<string> {
+  const c = stream.response;
+  const lines = c.split('\n').filter(l => l != '');
+  const finalLine = lines[lines.length-1];
+  console.log(lines);
+  console.log('final line is: ' + finalLine);
+  if (finalLine && finalLine.includes('Action:')) {
+    try {
+      const json = JSON.parse(finalLine.split('Action: ')[1]);
+      const toolCall :ToolCall = {
+        function: {
+          name: json['function_name'],
+          arguments: json['arguments']
+        }
+      };
+      const toolResults = await triggerToolCall(toolCall);
+      const newPrompt = prompt + c + `Observation: ${toolResults}\n`;
+      yield* module.generate(newPrompt, model);
+    } catch(e) {
+      console.log(e);
+      yield c;
+    }
+  } else if (finalLine && finalLine.includes('Final Answer')) {
+    yield finalLine.split('Final Answer: ')[1];
+  } else {
+    console.log('no action found, exiting');
+    yield c;
+  }
+}
+
 export class AiModule {
   private readonly ollama: Ollama;
 
@@ -93,11 +126,19 @@ export class AiModule {
     this.ollama = new Ollama({ host: 'http://192.168.2.132:11434' })
   }
 
-  async *generate(prompt: string, model: Models) {
+  async *generate(prompt: string, model: Models):AsyncIterableIterator<string> {
     try {
+      // TODO - think of better way to avoid adding the tools many times with recursion
+      if (model == Models.AGENT && !prompt.includes('Available Tools:')) {
+        prompt += `\n${createToolPrompt(getToolDefinitions())}\n`;
+      }
+      console.log('------------------------------------');
+      console.log(prompt);
+      console.log('------------------------------------');
       yield* initialize(this.ollama, model);
-      const stream = await generate(this.ollama, model, prompt);
-      yield* streamGenerateOutput(stream, model);
+      const response = await generate(this.ollama, model, prompt);
+      const result = await handleAgenticLoop(prompt, this, response, model)
+      yield *streamGenerateOutput(result);
     } catch (e) {
       yield* handleError(e);
     }
@@ -106,7 +147,7 @@ export class AiModule {
   async *chat(msgs: OllamaMessage[], model: Models):AsyncIterable<string> {
     if (!msgs.length) { return; }
 
-    async function* doThing(module: AiModule, stream: AsyncIterableIterator<ChatResponse>) {
+    async function* handleToolCalls(module: AiModule, stream: AsyncIterableIterator<ChatResponse>) {
       for await (const s of stream) {
         if (s.message.tool_calls && s.message.tool_calls.length) {
           const toolResults = await executeToolCalls(s.message.tool_calls);
@@ -118,7 +159,6 @@ export class AiModule {
               content: r
             });
           });
-          // console.log(msgs);
           yield* module.chat(msgs, model);
           break;
         } else {
@@ -129,9 +169,9 @@ export class AiModule {
     try {
       yield* initialize(this.ollama, model);
       const stream = await chat(this.ollama, model, msgs);
-      const finalStream = doThing(this, stream);
+      const finalStream = handleToolCalls(this, stream);
       // the will have tool messages and string messages
-      yield* streamChatOutput(finalStream, model);
+      yield* streamChatOutput(finalStream);
     } catch (e) {
       yield* handleError(e);
     }
