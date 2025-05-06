@@ -1,15 +1,25 @@
+const GRANITE = 'granite3.3:8b';
+const LLAMA = 'llama3.2:3b';
+const LLAMA_INSTRUCT = 'llama3.2:3b-instruct-q8_0'
+const GEMMA = 'gemma3:4b';
+const DEEP_SEEK = 'deepseeks-r1:1.5b';
+
+const THINKING_MODELS = [DEEP_SEEK];
+const TOOLCALLING_MODELS = [LLAMA, LLAMA_INSTRUCT, GRANITE];
+
 export enum Models {
-  AGENT = 'granite3.3:8b',
-  DEEP_SEEK = 'deepseek',
-  DEEP_SEEK_SLOW = 'deepseek-slow',
-  ITALIA_BEGINNER = 'it-beginner',
-  ITALIA = 'it-advanced',
-  ITALIA_PHRASES = 'it-phrase-parsing',
+  AGENT,
+  DEEP_SEEK,
+  ITALIA_BEGINNER,
+  ITALIA,
 };
 
 export function isThinking(m: Models) {
-  const MODELS_THAT_THINK = [Models.DEEP_SEEK, Models.DEEP_SEEK_SLOW];
-  return MODELS_THAT_THINK.includes(m);
+  return THINKING_MODELS.includes(MODEL_INFO[m].model_id);
+}
+
+export function isToolcalling(m: Models) {
+  return TOOLCALLING_MODELS.includes(MODEL_INFO[m].model_id);
 }
 
 export const IT_PHRASES = `
@@ -93,33 +103,25 @@ Final Answer: the final answer to the original input question
 Now begin! Reminder to ALWAYS use the exact characters 'Final Answer:' when you provide a definitive answer. 
 `;
 
-export const MODEL_TEMPERATURE = {
-  [Models.ITALIA_BEGINNER]: 0.4,
-  [Models.ITALIA]: 1.0,
-  [Models.ITALIA_PHRASES]: 0.2,
-  [Models.DEEP_SEEK]: 1.0,
-  [Models.DEEP_SEEK_SLOW]: 1.0,
-  [Models.AGENT]: 1.0
-}
-
-export const SYSTEM_PROMPTS = {
-  [Models.ITALIA]: IT_ADVANCED,
-  [Models.ITALIA_BEGINNER]: IT_BEGINNER,
-  [Models.ITALIA_PHRASES]: IT_PHRASES,
-  [Models.DEEP_SEEK]: '',
-  [Models.DEEP_SEEK_SLOW]: '',
-  [Models.AGENT]: AGENT_PROMPT,
-}
-
-const GRANITE = 'granite3.3:8b';
-const LLAMA = 'llama3.2:3b';
-const GEMMA = 'gemma3:4b';
-const DEF_MODEL = GEMMA;
-export const BASE_MODELS = {
-  [Models.AGENT]: GRANITE,
-  [Models.ITALIA]: DEF_MODEL,
-  [Models.ITALIA_BEGINNER]: DEF_MODEL,
-  [Models.ITALIA_PHRASES]: DEF_MODEL,
-  [Models.DEEP_SEEK]: 'deepseek-r1:1.5b',
-  [Models.DEEP_SEEK_SLOW]: 'deepseek-r1:7b'
-}
+export const MODEL_INFO = {
+  [Models.AGENT]: {
+    temperature: 1.0,
+    system_prompt: AGENT_PROMPT,
+    model_id: LLAMA_INSTRUCT,
+  },
+  [Models.ITALIA_BEGINNER]: {
+    temperature: 0.4,
+    system_prompt: IT_BEGINNER,
+    model_id: LLAMA_INSTRUCT,
+  },
+  [Models.ITALIA]: {
+    temperature: 1.0,
+    system_prompt: IT_ADVANCED,
+    model_id: LLAMA_INSTRUCT,
+  },
+  [Models.DEEP_SEEK]: {
+    temperature: 1.0,
+    system_prompt: '',
+    model_id: DEEP_SEEK,
+  },
+};

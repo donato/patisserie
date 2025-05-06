@@ -1,6 +1,6 @@
 import { ChatResponse, GenerateResponse, Ollama, Message as OllamaMessage, Tool, ToolCall } from 'ollama'
-import { streamChatOutput, streamGenerateOutput } from './stream-utils'
-import { Models, BASE_MODELS, MODEL_TEMPERATURE, SYSTEM_PROMPTS } from './prompts';
+import { streamChatOutput } from './stream-utils'
+import { Models, MODEL_INFO, isToolcalling} from './prompts';
 import { executeToolCalls, createToolPrompt, triggerToolCall, getToolDefinitions } from './tools';
 
 export const INFO_PREFIX = '[info]';
@@ -10,12 +10,13 @@ function generate(ollama: Ollama, model: Models, prompt: string) {
   console.log(`ollama.generate [${model}]`);
   console.log(prompt);
   console.log('------------------------------------');
+  const {model_id, temperature, system_prompt} = MODEL_INFO[model];
   return ollama.generate({
-    model: BASE_MODELS[model],
-    system: SYSTEM_PROMPTS[model],
+    model: model_id,
+    system: system_prompt,
     prompt: prompt,
     options: {
-      temperature: MODEL_TEMPERATURE[model],
+      temperature,
       stop: ['Observation:'],
     },
     stream: false,
@@ -25,20 +26,22 @@ function generate(ollama: Ollama, model: Models, prompt: string) {
 }
 
 function chat(ollama: Ollama, model: Models, msgs: OllamaMessage[]) {
-  console.log(`ollama.chat [${model}]`);
+  const {model_id, temperature, system_prompt} = MODEL_INFO[model];
   msgs.unshift({
     role: 'system',
-    content: SYSTEM_PROMPTS[model]
+    content: system_prompt,
   });
-  let tools = getToolDefinitions();
-  if (model == Models.DEEP_SEEK) {
-    tools = [];
-  }
+  let tools = isToolcalling(model) ? getToolDefinitions() : [];
+
+  console.log('------------------------------------');
+  console.log(`ollama.chat [${model}]`);
+  console.log(msgs);
+  console.log('------------------------------------');
   return ollama.chat({
-    model: BASE_MODELS[model],
+    model: model_id,
     messages: msgs,
     options: {
-      temperature: MODEL_TEMPERATURE[model]
+      temperature,
     },
     tools,
     stream: true,
@@ -50,7 +53,7 @@ function chat(ollama: Ollama, model: Models, msgs: OllamaMessage[]) {
 async function isModelActive(ollama: Ollama, model: Models) {
   const runningModels = await ollama.ps();
   return runningModels.models.some(
-    m => m.name == BASE_MODELS[model]);
+    m => m.name == MODEL_INFO[model].model_id);
 }
 
 async function* initialize(ollama: Ollama, model: Models) {
@@ -65,7 +68,7 @@ async function* initialize(ollama: Ollama, model: Models) {
   let isActive = false;
   let retries = 0;
   while (!isActive && retries < 3) {
-    yield `${INFO_PREFIX} Attempting to boot ${BASE_MODELS[model]}`;
+    yield `${INFO_PREFIX} Attempting to boot ${MODEL_INFO[model].model_id}`;
     generate(ollama, model, 'test');
 
     await new Promise(resolve => setTimeout(resolve, 2000));
@@ -74,7 +77,7 @@ async function* initialize(ollama: Ollama, model: Models) {
     retries++;
   }
   if (isActive) {
-    yield `${INFO_PREFIX} Model ${BASE_MODELS[model]} running!`;
+    yield `${INFO_PREFIX} Model ${MODEL_INFO[model].model_id} running!`;
   } else {
     yield `${INFO_PREFIX} Stopping retrying.`;
   }
