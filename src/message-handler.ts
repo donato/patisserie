@@ -53,7 +53,7 @@ async function getConversation(msg: any): Promise<OllamaMessage[]> {
   }, []);
 }
 
-export async function onMessage(redis: Db, ollama: AiModule, tornModule: TornModule, msg: any) {
+export async function onMessage(ollama: AiModule, msg: any) {
   if (msg.author.bot) {
     return;
   }
@@ -61,17 +61,6 @@ export async function onMessage(redis: Db, ollama: AiModule, tornModule: TornMod
   const text = msg.content;
   const isAdmin = ADMIN_SERVERS.indexOf(msg.guildId) !== -1;
   const [command, arg1, arg2] = text.split(" ");
-
-  if (command === "!db") {
-    const value = await redis.get(arg1);
-    if (!value) {
-      msg.channel.send(`Not found`);
-      return;
-    }
-    console.log(value);
-    msg.channel.send(`${JSON.stringify(value)}`);
-    return;
-  }
 
   if (command === '!welcome') {
     // msg.guild.channels.fetch()
@@ -91,12 +80,6 @@ export async function onMessage(redis: Db, ollama: AiModule, tornModule: TornMod
     await sendMessageIterator(msg, replyIterator);
     return;
   }
-  if (command === "!aislow") {
-    const prompt = text.replace(command, '');
-    const replyIterator = await ollama.generate(prompt, Models.DEEP_SEEK_SLOW);
-    await sendMessageIterator(msg, replyIterator);
-    return;
-  }
 
   // if (command === '!help') {
   //   renderHelp().then(text => {
@@ -107,40 +90,6 @@ export async function onMessage(redis: Db, ollama: AiModule, tornModule: TornMod
 
   if (command == '!crash') {
     throw 'intentional crash';
-  }
-  if (command == '!api-add') {
-    tornModule.apiKey(msg);
-    return;
-  }
-
-  if (command == '!verify') {
-    tornModule.verify(msg);
-    return;
-  }
-
-  if (command == '!lookup') {
-    tornModule.lookup(msg);
-    return;
-  }
-
-  if (command == '!faction') {
-    tornModule.faction(msg);
-    return;
-  }
-
-  if (command == '!travel') {
-    tornModule.checkFlights(msg);
-    return;
-  }
-
-  if (command == '!frc') {
-    tornModule.checkRevives(msg);
-    return;
-  }
-
-  if (command == '!ce') {
-    tornModule.company(msg);
-    return;
   }
 
   if (command == '!serverinfo') {
@@ -199,15 +148,7 @@ export async function onMessage(redis: Db, ollama: AiModule, tornModule: TornMod
     // Do chat
     let replyIterator;
     replyIterator = ollama.chat(conversation, model);
-    const fullMessage = await sendMessageIterator(msg, replyIterator);
-    // do helpful translation
-    // if (msg.channel.id == CHANNEL_ITALIA_BEGINNER && fullMessage.length > 10) {
-    //   console.log('translate of: ' + fullMessage);
-    //   replyIterator = ollama.generate(fullMessage, Models.ITALIA_PHRASES)
-    //   const t = new Translation();
-    //   const filteredReplies = transformAsyncIterator(replyIterator, t.handleTranslation);
-    //   sendMessageIterator(msg, filteredReplies);
-    // }
+    const unused = await sendMessageIterator(msg, replyIterator);
   }
 
   if (!isAdmin) {

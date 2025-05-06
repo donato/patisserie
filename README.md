@@ -1,5 +1,40 @@
+# Discord bot invite link
 
-#toTasks
+https://discord.com/api/oauth2/authorize?client_id=957473918887792700&permissions=75776&scope=bot%20applications.commands
+
+# How to build docker
+
+1. Build it
+
+    ```sh
+    # Connect to unraid terminal
+    cd /mnt/user/development/patisserie
+    docker build . --tag donato/patisserie
+    ```
+
+2. In the Unraid UI create a new docker and set environment variables for:
+  + CLIENT_TOKEN= from discord
+  + REDIS_HOST
+3. Mount
+
+    ```sh
+    /app/src = /mnt/user/development/patisserie/src/
+    /app/db = /mnt/user/appdata/patisserie/
+    ```
+
+4. In Unraid, Docker, click "Advanced" and click "Force update"
+
+# How to add new JS Library
+Rebuilding the container is overkill if adding a new js dependency.
+
+```sh
+# Connect to docker terminal
+cd /app/src/
+npm install <xyz>
+```
+
+
+# Todo
 
 - x - add last_update to data objects (and avoid re-loading)
 - x - store data-objects unmodified instead of filtered

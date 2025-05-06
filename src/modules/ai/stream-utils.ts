@@ -1,5 +1,3 @@
-import { ChatResponse, GenerateResponse, Ollama, Message as OllamaMessage } from 'ollama'
-import { Models } from './prompts';
 import { INFO_PREFIX } from './ollama'
 
 
@@ -30,31 +28,18 @@ export async function sendMessageIterator(msg: any, replyIterator: AsyncIterable
   return stringBuilder;
 }
 
-export async function* streamChatOutput(stream: AsyncIterableIterator<ChatResponse|string>) {
-  const map = (json: ChatResponse|string) => typeof json == 'string' ? json : json.message.content;
-  const stringStream = transformAsyncIterator(stream, map);
-  yield* streamOutput(stringStream);
-}
-
-export async function* streamGenerateOutput(stream: AsyncIterableIterator<string>) {
-  yield* streamOutput(stream);
-}
-
-// Internal helper function
-async function* streamOutput(stream: AsyncIterable<string>) {
-  let msgBuffer = '';
-  // let isThinking = isThinkingFn(model);
-  // if (isThinking) {
-  //   yield '[info] Chain of Thought omitted';
-  // }
+export async function* stripThinkingTokens(stream:AsyncIterable<string>) {
   for await (const newWord of stream) {
-    // if (newWord == '</think>') {
-    //   isThinking = false;
-    //   continue;
-    // }
-    // if (isThinking) {
-    //   continue;
-    // }
+    if (newWord.includes("</think>")) {
+      break;
+    }
+  }
+  yield* stream;
+}
+
+export async function* streamOutput(stream: AsyncIterable<string>) {
+  let msgBuffer = '';
+  for await (const newWord of stream) {
     if (msgBuffer.length + newWord.length > 500) {
       yield msgBuffer;
       msgBuffer = newWord;

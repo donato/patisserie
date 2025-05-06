@@ -1,6 +1,6 @@
 import { ChatResponse, GenerateResponse, Ollama, Message as OllamaMessage, Tool, ToolCall } from 'ollama'
-import { streamChatOutput } from './stream-utils'
-import { Models, MODEL_INFO, isToolcalling} from './prompts';
+import { streamOutput } from './stream-utils'
+import { Models, MODEL_INFO, isToolcalling } from './prompts';
 import { executeToolCalls, createToolPrompt, triggerToolCall, getToolDefinitions } from './tools';
 
 export const INFO_PREFIX = '[info]';
@@ -10,7 +10,7 @@ function generate(ollama: Ollama, model: Models, prompt: string) {
   console.log(`ollama.generate [${model}]`);
   console.log(prompt);
   console.log('------------------------------------');
-  const {model_id, temperature, system_prompt} = MODEL_INFO[model];
+  const { model_id, temperature, system_prompt } = MODEL_INFO[model];
   return ollama.generate({
     model: model_id,
     system: system_prompt,
@@ -26,7 +26,7 @@ function generate(ollama: Ollama, model: Models, prompt: string) {
 }
 
 function chat(ollama: Ollama, model: Models, msgs: OllamaMessage[]) {
-  const {model_id, temperature, system_prompt} = MODEL_INFO[model];
+  const { model_id, temperature, system_prompt } = MODEL_INFO[model];
   msgs.unshift({
     role: 'system',
     content: system_prompt,
@@ -154,34 +154,41 @@ export class AiModule {
 
   async *chat(msgs: OllamaMessage[], model: Models): AsyncIterable<string> {
     if (!msgs.length) { return; }
+    const { model_id, temperature, system_prompt } = MODEL_INFO[model];
 
-    async function* handleToolCalls(module: AiModule, stream: AsyncIterableIterator<ChatResponse>) {
-      for await (const s of stream) {
-        if (s.message.tool_calls && s.message.tool_calls.length) {
-          const toolResults = await executeToolCalls(s.message.tool_calls);
-          // handle tool stuff
-          msgs.push(s.message);
-          toolResults.forEach(r => {
-            msgs.push({
-              role: 'tool',
-              content: r
+    // helper function required to allow batching yields together for streamOutput()
+    async function* iterateThroughStream(ollama: Ollama) {
+      let iterations = 0;
+      while (true && iterations++ < 10) {
+        const stream = await chat(ollama, model, msgs);
+        let receivedFunctionCall = false;
+        for await (const s of stream) {
+          yield s.message.content;
+          if (s.message.tool_calls && s.message.tool_calls.length) {
+            receivedFunctionCall = true;
+            console.log(`++ [ Function Call : ${JSON.stringify(s.message.tool_calls)}] ++`);
+            const toolResults = await executeToolCalls(s.message.tool_calls);
+            msgs.push(s.message);
+            toolResults.forEach(r => {
+              msgs.push({
+                role: 'tool',
+                content: r
+              });
             });
-          });
-          yield* module.chat(msgs, model);
-          break;
-        } else {
-          yield s;
+          }
+          if (s.done && !receivedFunctionCall) {
+            return;
+          }
         }
       }
     }
+
     try {
       yield* initialize(this.ollama, model);
-      const stream = await chat(this.ollama, model, msgs);
-      const finalStream = handleToolCalls(this, stream);
-      // the will have tool messages and string messages
-      yield* streamChatOutput(finalStream);
+      yield* streamOutput(iterateThroughStream(this.ollama));
     } catch (e) {
       yield* handleError(e);
     }
   }
 }
+

@@ -433,4 +433,54 @@ export class TornModule {
       }
     }
   }
+
+  async onMessage(msg: any) {
+    const text = msg.content;
+    const [command, arg1, arg2] = text.split(" ");
+
+    if (command === "!db") {
+      const value = await this.tornDb.get(arg1);
+      if (!value) {
+        msg.channel.send(`Not found`);
+        return;
+      }
+      console.log(value);
+      msg.channel.send(`${JSON.stringify(value)}`);
+      return;
+    }
+    if (command == '!api-add') {
+      this.apiKey(msg);
+      return;
+    }
+
+    if (command == '!verify') {
+      this.verify(msg);
+      return;
+    }
+
+    if (command == '!lookup') {
+      this.lookup(msg);
+      return;
+    }
+
+    if (command == '!faction') {
+      this.faction(msg);
+      return;
+    }
+
+    if (command == '!travel') {
+      this.checkFlights(msg);
+      return;
+    }
+
+    if (command == '!frc') {
+      this.checkRevives(msg);
+      return;
+    }
+
+    if (command == '!ce') {
+      this.company(msg);
+      return;
+    }
+  }
 }

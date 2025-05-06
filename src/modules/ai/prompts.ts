@@ -2,7 +2,8 @@ const GRANITE = 'granite3.3:8b';
 const LLAMA = 'llama3.2:3b';
 const LLAMA_INSTRUCT = 'llama3.2:3b-instruct-q8_0'
 const GEMMA = 'gemma3:4b';
-const DEEP_SEEK = 'deepseeks-r1:1.5b';
+const GEMMA_INSTRUCT = 'gemma3:4b-it-q8_0';
+const DEEP_SEEK = 'deepseek-r1:1.5b';
 
 const THINKING_MODELS = [DEEP_SEEK];
 const TOOLCALLING_MODELS = [LLAMA, LLAMA_INSTRUCT, GRANITE];
@@ -107,7 +108,7 @@ export const MODEL_INFO = {
   [Models.AGENT]: {
     temperature: 1.0,
     system_prompt: AGENT_PROMPT,
-    model_id: LLAMA_INSTRUCT,
+    model_id: GEMMA_INSTRUCT,
   },
   [Models.ITALIA_BEGINNER]: {
     temperature: 0.4,
@@ -117,7 +118,7 @@ export const MODEL_INFO = {
   [Models.ITALIA]: {
     temperature: 1.0,
     system_prompt: IT_ADVANCED,
-    model_id: LLAMA_INSTRUCT,
+    model_id:GEMMA_INSTRUCT,
   },
   [Models.DEEP_SEEK]: {
     temperature: 1.0,
