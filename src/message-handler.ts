@@ -131,7 +131,17 @@ export async function onMessage(ollama: AiModule, msg: any) {
 
   if (msg.channel.id == CHANNEL_AGENT) {
     await msg.channel.sendTyping();
-    const replyIterator = await ollama.generate(text, Models.AGENT);
+    // const conversation = (await getConversation(msg)).slice(-1);
+    const conversation = [
+      {
+        role: 'user',
+        content: text
+      },
+      {
+        role: 'assistant',
+        content: 'Question: ' + text + '\nThought:'
+      }];
+    const replyIterator = await ollama.chat(conversation, Models.AGENT);
     await sendMessageIterator(msg, replyIterator);
     return;
   }

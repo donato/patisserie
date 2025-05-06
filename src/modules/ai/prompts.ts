@@ -111,9 +111,9 @@ export const MODEL_INFO = {
     model_id: GEMMA_INSTRUCT,
   },
   [Models.ITALIA_BEGINNER]: {
-    temperature: 0.4,
+    temperature: 1.0,
     system_prompt: IT_BEGINNER,
-    model_id: LLAMA_INSTRUCT,
+    model_id: GEMMA_INSTRUCT,
   },
   [Models.ITALIA]: {
     temperature: 1.0,

@@ -28,6 +28,20 @@ export async function sendMessageIterator(msg: any, replyIterator: AsyncIterable
   return stringBuilder;
 }
 
+export async function* batchByNewlines(stream: AsyncIterable<string>) {
+  let msgBuffer = '';
+  for await (const newWord of stream) {
+    msgBuffer += newWord;
+    if (newWord.indexOf('\n') !== -1) {
+      yield msgBuffer;
+      msgBuffer = '';
+    }
+  }
+  if (msgBuffer.length) {
+    yield msgBuffer;
+  }
+}
+
 export async function* stripThinkingTokens(stream:AsyncIterable<string>) {
   for await (const newWord of stream) {
     if (newWord.includes("</think>")) {
