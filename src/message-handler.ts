@@ -19,7 +19,7 @@ const ADMIN_SERVERS = ['906362118914330694'];
 const PATTIES_ID = '957473918887792700';
 const CHANNEL_ITALIA_ADVANCED = '1345830090780704799';
 const CHANNEL_ITALIA_BEGINNER = '1345897179084099645';
-const CHANNEL_DEEPSEEK = '1345507783910621305'; // interactive channel
+const CHANNEL_CODING_AGENT = '1335694908887011458'; // interactive channel
 const CHANNEL_AGENT = '1368952263627903109';
 const VANGUARD_ASSASSIN_SERVER_ID = '1253005595779272816';
 
@@ -74,13 +74,6 @@ export async function onMessage(ollama: AiModule, msg: any) {
     return;
   }
 
-  if (command === "!ai") {
-    const prompt = text.slice(3);
-    const replyIterator = await ollama.generate(prompt, AgentType.REACT);
-    await sendMessageIterator(msg, replyIterator);
-    return;
-  }
-
   // if (command === '!help') {
   //   renderHelp().then(text => {
   //     msg.channel.send(`${text}`);
@@ -129,33 +122,21 @@ export async function onMessage(ollama: AiModule, msg: any) {
     return;
   }
 
-  if (msg.channel.id == CHANNEL_AGENT) {
-    await msg.channel.sendTyping();
-    if (text == 'reset') {
-      return;
-    }
-    // const conversation = (await getConversation(msg)).slice(-1);
-    const conversation = [
-      {
-        role: 'user',
-        content: text
-      },
-      {
-        role: 'assistant',
-        content: 'Question: ' + text + '\nThought:'
-      }];
-    const replyIterator = await ollama.chat(conversation, AgentType.REACT);
+  if (command === "!ai") {
+    const prompt = text.slice(3);
+    const replyIterator = await ollama.generate(prompt, AgentType.REACT);
     await sendMessageIterator(msg, replyIterator);
     return;
   }
 
-  if ([CHANNEL_ITALIA_ADVANCED, CHANNEL_ITALIA_BEGINNER, CHANNEL_DEEPSEEK].includes(msg.channel.id)) {
+  if ([CHANNEL_ITALIA_ADVANCED, CHANNEL_ITALIA_BEGINNER, CHANNEL_CODING_AGENT].includes(msg.channel.id)) {
     await msg.channel.sendTyping();
     const conversation = await getConversation(msg);
     const CHANNEL_MAP: { [key: string]: AgentType } = {
       [CHANNEL_ITALIA_ADVANCED]: AgentType.ITALIA_CONVERSATIONAL,
       [CHANNEL_ITALIA_BEGINNER]: AgentType.ITALIA_BEGINNER,
-      [CHANNEL_DEEPSEEK]: AgentType.CODING,
+      [CHANNEL_AGENT]: AgentType.REACT,
+      [CHANNEL_CODING_AGENT]: AgentType.CODING,
     };
     const agentType = CHANNEL_MAP[msg.channel.id];
     let replyIterator;

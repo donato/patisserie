@@ -29,15 +29,20 @@ export async function executePython(code:string) {
 
   const k = await kernelManager.startNew();
   const shellFuture = k.requestExecute({code});
+  let ioBuffer = '';
   shellFuture.onIOPub = msg => {
     if (msg.header.msg_type !== 'status') {
       const content = msg.content as any;
       if (content.name == 'stdout') {
-        console.log(content.text); // note it will have a trailing newline
+        // note it will have a trailing newline
+        console.log(content.text);
+        ioBuffer += content.text;
       }
     }
   };
   const z = await shellFuture.done;
   shellFuture.dispose();
   k.dispose();
+
+  return ioBuffer;
 }

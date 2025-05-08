@@ -4,10 +4,13 @@ import { ChatResponse, GenerateResponse, Ollama, Message as OllamaMessage, Tool,
 import { batchByNewlines, streamOutput, transformAsyncIterator } from './stream-utils'
 import { AgentFactory, Agent, AgentType, useManualToolCalling, useNativeToolCalling} from './agents';
 import { executeToolCalls, createToolPrompt, triggerToolCall, getToolDefinitions } from './tools';
+import { executePython } from './tools-python-interpreter';
 
 export const INFO_PREFIX = '[info]';
 // Somewhat arbitrary, but the default value was insanely low
 const CONTEXT_LENGTH = 16000;
+
+const MAX_ITERATIONS = 10;
 
 function generate(ollama: Ollama, agent: Agent, prompt: string) {
   console.log('------------------------------------');
@@ -93,10 +96,31 @@ function* handleError(e: unknown) {
   }
 }
 
-function extractToolCall(line: string): ToolCall | null {
-  if (line && line.includes('Action:')) {
+// ChatGPT code...
+function extractLastMarkdownCode(markdown: string): string | null {
+  const codeMatches: string[] = [];
+
+  // Match all fenced code blocks
+  const fencedBlockRegex = /```(?:\w*\n)?([\s\S]*?)```/g;
+  let match;
+  while ((match = fencedBlockRegex.exec(markdown)) !== null) {
+    codeMatches.push(match[1].trim());
+  }
+
+  return codeMatches.length > 0 ? codeMatches[codeMatches.length - 1] : null;
+}
+
+interface PythonToolCall {
+  code: string
+}
+function isPythonToolCall(o : PythonToolCall | ToolCall): o is PythonToolCall {
+  return typeof (o as PythonToolCall).code == 'string';
+}
+
+function extractToolCall(text: string): ToolCall | PythonToolCall | null {
+  if (text && text.includes('Action:')) {
     try {
-      const json = JSON.parse(line.split('Action: ')[1]);
+      const json = JSON.parse(text.split('Action: ')[1]);
       const toolCall: ToolCall = {
         function: {
           name: json['function_name'],
@@ -105,8 +129,16 @@ function extractToolCall(line: string): ToolCall | null {
       };
       return toolCall;
     } catch (e) {
-      console.log(line);
+      console.log(text);
       console.log(e);
+    }
+  } else if (text && text.includes('Code:')) {
+
+    const pyText = extractLastMarkdownCode(text);
+    if (pyText) {
+      return {
+        code: pyText
+      }
     }
   }
   return null;
@@ -126,7 +158,7 @@ export class AiModule {
       }
       yield* initialize(this.ollama, agent);
       let iterations = 0;
-      while (iterations++ < 100) {
+      while (iterations++ < MAX_ITERATIONS) {
         const generateResponse = await generate(this.ollama, agent, prompt);
         const response = generateResponse.response;
 
@@ -135,12 +167,15 @@ export class AiModule {
         const lines = response.split('\n').filter(l => l != '');
         const finalLine = lines[lines.length - 1];
 
-        const result = extractToolCall(finalLine)
         if (response.includes('Final Answer:')) {
           return;
         }
-        if (result) {
-          const toolResults = await triggerToolCall(result);
+        const toolCall = extractToolCall(finalLine)
+        if (toolCall && isPythonToolCall(toolCall)) {
+          const toolResults = await executePython(toolCall.code);
+          prompt += generateResponse.response + `Observation: ${toolResults}\n`;
+        } else if (toolCall) {
+          const toolResults = await triggerToolCall(toolCall);
           prompt += generateResponse.response + `Observation: ${toolResults}\n`;
         }
       }
@@ -157,7 +192,7 @@ export class AiModule {
     // helper function required to allow batching yields together for streamOutput()
     async function* iterateThroughStreamWithNormalFunctionCalling(ollama: Ollama) {
       let iterations = 0;
-      while (true && iterations++ < 10) {
+      while (true && iterations++ < MAX_ITERATIONS) {
         const stream = await chat(ollama, agent, msgs);
         let receivedFunctionCall = false;
         for await (const s of stream) {
@@ -184,32 +219,35 @@ export class AiModule {
     // helper function required to allow batching yields together for streamOutput()
     async function* iterateThroughStreamManualParsing(ollama: Ollama) {
       let iterations = 0;
-      let lastLine = '';
-      while (iterations++ < 100) {
+      while (iterations++ < MAX_ITERATIONS) {
         const s1 = await chat(ollama, agent, msgs);
         const s2 = await transformAsyncIterator(s1, (i => i.message.content));
         
-        for await (const line of batchByNewlines(s2)) {
-          lastLine = line;
-          yield line;
-
-          // The final message is the Assistant message that is initially prefilled, and then iteratively generated.
-          msgs[msgs.length - 1].content += line;
-
-          const result = extractToolCall(line)
-          if (result) {
-            console.log(`++ [ Function Call : ${JSON.stringify(result)}] ++`);
-            const toolResults = await triggerToolCall(result);
-            console.log(`++ [ Function Results : ${toolResults}] ++`);
-            const observation = `Observation: ${toolResults}\n`;
-            yield observation;
-            msgs[2].content += observation;
-          }
+        let sBuilder = '';
+        for await (const str of s2) {
+          sBuilder += str;
+          yield str;
         }
-        // If it was not 'stop'ed on an Action, then stop looping
-        if (!lastLine.includes('Action:')) {
+
+        const toolCall = extractToolCall(sBuilder)
+        if (toolCall && isPythonToolCall(toolCall)) {
+          const toolResults = await executePython(toolCall.code);
+          const observation = `\nObservation: ${toolResults}\n`;
+          yield observation;
+          sBuilder += observation;
+        } else if (toolCall) {
+          console.log(`++ [ Function Call : ${JSON.stringify(toolCall)}] ++`);
+          const toolResults = await triggerToolCall(toolCall);
+          console.log(`++ [ Function Results : ${toolResults}] ++`);
+          const observation = `Observation: ${toolResults}\n`;
+          yield observation;
+          sBuilder += observation;
+        } else {
+          // If it was not 'stop'ed on an Action, then stop looping
           return;
         }
+        // The final message is the Assistant message that is initially prefilled, and then iteratively generated.
+        msgs[msgs.length - 1].content += sBuilder;
       }
     }
 
@@ -224,7 +262,7 @@ export class AiModule {
     });
 
     msgs.push({
-      'role': 'assistant',
+      role: 'assistant',
       content: agent.prefillText
     })
 

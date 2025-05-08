@@ -2,6 +2,8 @@ import { Tool, ToolCall } from 'ollama';
 import { tavily } from "@tavily/core";
 
 
+// TODO - add a tool for 'ask user to confirm, or for more info'
+
 type ToolCallArgs = { [key: string]: any };
 interface MyTool {
   toolDefinition: Tool;
@@ -36,7 +38,7 @@ export const DiceTool: MyTool = {
 
 // Step 1. Instantiating your TavilyClient
 const tvly = tavily({ apiKey: "tvly-YOUR_API_KEY" });
-export const InternetSearch : MyTool = {
+export const InternetSearch: MyTool = {
   toolDefinition: {
     type: 'function',
     function: {
@@ -58,18 +60,18 @@ export const InternetSearch : MyTool = {
   execute: async (args: ToolCallArgs) => {
     const query = args['search_query'];
 
-    console.log('tv search: '+ query);
-    const options =  {};
+    console.log('tv search: ' + query);
+    const options = {};
     const response = await tvly.search(query, options);
 
     let sb = '';
     for (let result of response.results) {
-        sb += `URL: ${result.url}`;
-        sb += `\n`;
-        sb += `Raw Content: ${result.rawContent}\n`;
-        sb += `\n\n`;
+      sb += `URL: ${result.url}`;
+      sb += `\n`;
+      sb += `Raw Content: ${result.rawContent}\n`;
+      sb += `\n\n`;
     }
-    console.log (sb);
+    console.log(sb);
     return Promise.resolve(sb);
   },
 }
@@ -95,10 +97,17 @@ export function executeToolCalls(toolCalls: ToolCall[]) {
   return Promise.all(promises);
 }
 
-export function createToolPrompt(tools:Tool[]) {
-  return 'Available Tools:\n' + tools.map(t => {
-    const {parameters, name, description} = t.function;
-    const args = JSON.stringify(parameters); 
-    return `  ${name}: ${description}. Args: ${args}`;
-  }).join('\n') + `\n\n\n`;
+export function createToolPrompt(tools: Tool[]) {
+  return `To use a tool, you must write:
+  
+Action: {"function_name": "...", "arguments": "..."}\nObservation: <results of the function call>\n\n` +
+    `Available Tools:\n` + tools.map(t => {
+      const { parameters, name, description } = t.function;
+      const simpleDict:{[k: string]: string} = {};
+      for (const p in parameters.properties) {
+        simpleDict[p] = parameters.properties[p].type;
+      }
+      const args = JSON.stringify(simpleDict);
+      return `  ${name}: ${description}. Required parameters: ${args}`;
+    }).join('\n') + `\n\n\n`;
 }
