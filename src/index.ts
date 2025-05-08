@@ -1,7 +1,7 @@
 
 import { Client, Intents, Invite, Message } from 'discord.js';
 import { TornModule } from './modules/torn/torn_module';
-import { AiModule } from './modules/ai/ollama';
+import { AiModule, createAiModule } from './modules/ai/ollama';
 import { createClient, RedisClientType } from 'redis';
 import { onMessage } from './message-handler';
 import JSONdb from 'simple-json-db';
@@ -62,13 +62,14 @@ async function init() {
   // const tornModule = new TornModule(tornDb, discordDb, tornAppendOnlyLog);
   // tornModule.setDiscordClient(discordClient);
 
+  const aiModule = await createAiModule();
   discordClient.on('message', (msg: Message) => {
     if (msg.author.bot) {
       return;
     }
 
     // tornModule.onMessage(tornDb, msg);
-    onMessage(new AiModule(), msg);
+    onMessage(aiModule, msg);
   });
 }
 

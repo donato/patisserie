@@ -1,25 +1,26 @@
+  import fs from 'fs'
+import YAML from 'yaml'
 import { ChatResponse, GenerateResponse, Ollama, Message as OllamaMessage, Tool, ToolCall } from 'ollama'
 import { batchByNewlines, streamOutput, transformAsyncIterator } from './stream-utils'
-import { Models, MODEL_INFO, isToolcalling } from './prompts';
+import { AgentFactory, Agent, AgentType, useManualToolCalling, useNativeToolCalling} from './agents';
 import { executeToolCalls, createToolPrompt, triggerToolCall, getToolDefinitions } from './tools';
 
 export const INFO_PREFIX = '[info]';
 // Somewhat arbitrary, but the default value was insanely low
 const CONTEXT_LENGTH = 16000;
 
-function generate(ollama: Ollama, model: Models, prompt: string) {
+function generate(ollama: Ollama, agent: Agent, prompt: string) {
   console.log('------------------------------------');
-  console.log(`ollama.generate [${model}]`);
+  console.log(`ollama.generate [${agent}]`);
   console.log(prompt);
   console.log('------------------------------------');
-  const { model_id, temperature, system_prompt } = MODEL_INFO[model];
   return ollama.generate({
-    model: model_id,
-    system: system_prompt,
+    model: agent.model_id,
+    system: agent.system_prompt,
     prompt: prompt,
     options: {
       num_ctx: CONTEXT_LENGTH,
-      temperature,
+      temperature: agent.temperature,
       stop: ['Observation:'],
     },
     stream: false,
@@ -28,20 +29,19 @@ function generate(ollama: Ollama, model: Models, prompt: string) {
   }) as unknown as Promise<GenerateResponse>;
 }
 
-function chat(ollama: Ollama, model: Models, msgs: OllamaMessage[]) {
-  let { model_id, temperature } = MODEL_INFO[model];
-  const tools = isToolcalling(model) ? getToolDefinitions() : [];
+function chat(ollama: Ollama, agent: Agent, msgs: OllamaMessage[]) {
+  const tools = useNativeToolCalling(agent) ? getToolDefinitions() : [];
 
   console.log('------------------------------------');
-  console.log(`ollama.chat [${model}]`);
+  console.log(`ollama.chat [${agent}]`);
   console.log(msgs);
   console.log('------------------------------------');
   return ollama.chat({
-    model: model_id,
+    model: agent.model_id,
     messages: msgs,
     options: {
       num_ctx: CONTEXT_LENGTH,
-      temperature,
+      temperature: agent.temperature,
       stop: ['Observation:'],
     },
     tools,
@@ -51,15 +51,15 @@ function chat(ollama: Ollama, model: Models, msgs: OllamaMessage[]) {
   }) as unknown as Promise<AsyncIterableIterator<ChatResponse>>;
 }
 
-async function isModelActive(ollama: Ollama, model: Models) {
+async function isModelActive(ollama: Ollama, agent: Agent) {
   const runningModels = await ollama.ps();
   return runningModels.models.some(
-    m => m.name == MODEL_INFO[model].model_id);
+    m => m.name == agent.model_id);
 }
 
-async function* initialize(ollama: Ollama, model: Models) {
+async function* initialize(ollama: Ollama, agent: Agent) {
   try {
-    if (await isModelActive(ollama, model)) {
+    if (await isModelActive(ollama, agent)) {
       return;
     }
   } catch (e) {
@@ -69,16 +69,16 @@ async function* initialize(ollama: Ollama, model: Models) {
   let isActive = false;
   let retries = 0;
   while (!isActive && retries < 3) {
-    yield `${INFO_PREFIX} Attempting to boot ${MODEL_INFO[model].model_id}`;
-    generate(ollama, model, 'test');
+    yield `${INFO_PREFIX} Attempting to boot ${agent}`;
+    generate(ollama, agent, 'test');
 
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    isActive = await isModelActive(ollama, model);
+    isActive = await isModelActive(ollama, agent);
     retries++;
   }
   if (isActive) {
-    yield `${INFO_PREFIX} Model ${MODEL_INFO[model].model_id} running!`;
+    yield `${INFO_PREFIX} Model ${agent} running!`;
   } else {
     yield `${INFO_PREFIX} Stopping retrying.`;
   }
@@ -113,22 +113,21 @@ function extractToolCall(line: string): ToolCall | null {
 }
 
 export class AiModule {
-  private readonly ollama: Ollama;
-
-  constructor() {
+  constructor(private readonly ollama: Ollama, private readonly agentFactory: AgentFactory) {
     // todo(): Add a queue and/or lock
-    this.ollama = new Ollama({ host: 'http://192.168.2.132:11434' })
   }
 
-  async *generate(prompt: string, model: Models): AsyncIterableIterator<string> {
+  async *generate(prompt: string, agentType: AgentType): AsyncIterableIterator<string> {
+    const agent = this.agentFactory.create(agentType);
     try {
-      if (model == Models.AGENT) {
+      // Note: Native tool calling is not supported by Ollama for generate APIs.
+      if (useManualToolCalling(agent)) {
         prompt = `${createToolPrompt(getToolDefinitions())}Question: ${prompt}\n`;
       }
-      yield* initialize(this.ollama, model);
+      yield* initialize(this.ollama, agent);
       let iterations = 0;
       while (iterations++ < 100) {
-        const generateResponse = await generate(this.ollama, model, prompt);
+        const generateResponse = await generate(this.ollama, agent, prompt);
         const response = generateResponse.response;
 
         // This will yield thoughts and actions as well
@@ -150,7 +149,8 @@ export class AiModule {
     }
   }
 
-  async *chat(msgs: OllamaMessage[], model: Models): AsyncIterable<string> {
+  async *chat(msgs: OllamaMessage[], agentType: AgentType): AsyncIterable<string> {
+    const agent = this.agentFactory.create(agentType);
     this.ollama.abort();
     if (!msgs.length) { return; }
 
@@ -158,7 +158,7 @@ export class AiModule {
     async function* iterateThroughStreamWithNormalFunctionCalling(ollama: Ollama) {
       let iterations = 0;
       while (true && iterations++ < 10) {
-        const stream = await chat(ollama, model, msgs);
+        const stream = await chat(ollama, agent, msgs);
         let receivedFunctionCall = false;
         for await (const s of stream) {
           yield s.message.content;
@@ -186,16 +186,15 @@ export class AiModule {
       let iterations = 0;
       let lastLine = '';
       while (iterations++ < 100) {
-        const s1 = await chat(ollama, model, msgs);
+        const s1 = await chat(ollama, agent, msgs);
         const s2 = await transformAsyncIterator(s1, (i => i.message.content));
         
         for await (const line of batchByNewlines(s2)) {
           lastLine = line;
           yield line;
-          // msg[0] = system prompt
-          // msg[1] = user prompt
-          // msg[2] = reasoning
-          msgs[2].content += line;
+
+          // The final message is the Assistant message that is initially prefilled, and then iteratively generated.
+          msgs[msgs.length - 1].content += line;
 
           const result = extractToolCall(line)
           if (result) {
@@ -207,15 +206,15 @@ export class AiModule {
             msgs[2].content += observation;
           }
         }
-        // If it was not 'stop'ed on an Action, then we can finish
+        // If it was not 'stop'ed on an Action, then stop looping
         if (!lastLine.includes('Action:')) {
           return;
         }
       }
     }
 
-    let { system_prompt } = MODEL_INFO[model];
-    if (model == Models.AGENT && !isToolcalling(model)) {
+    let system_prompt = agent.system_prompt;
+    if (useManualToolCalling(agent)) {
       system_prompt += `\n\n\n${createToolPrompt(getToolDefinitions())}`;
     }
 
@@ -224,9 +223,14 @@ export class AiModule {
       content: system_prompt,
     });
 
+    msgs.push({
+      'role': 'assistant',
+      content: agent.prefillText
+    })
+
     try {
-      yield* initialize(this.ollama, model);
-      if (isToolcalling(model)) {
+      yield* initialize(this.ollama, agent);
+      if (useNativeToolCalling(agent)) {
         yield* streamOutput(iterateThroughStreamWithNormalFunctionCalling(this.ollama));
       } else {
         yield* streamOutput(iterateThroughStreamManualParsing(this.ollama));
@@ -237,3 +241,18 @@ export class AiModule {
   }
 }
 
+export async function createAiModule(): Promise<AiModule> {
+  const allFiles = await Promise.all([
+      fs.promises.readFile('./modules/ai/prompts/react_agent.yml', 'utf8'),
+      fs.promises.readFile('./modules/ai/prompts/smolagents_code_agent.yml', 'utf8'),
+      fs.promises.readFile('./modules/ai/prompts/italia_beginner.yml', 'utf8'),
+      fs.promises.readFile('./modules/ai/prompts/italia_agent.yml', 'utf8'),
+  ]);
+  const [prompt_react, prompt_coding, prompt_italia_beginner, prompt_italia_conversational] = allFiles.map((f) => YAML.parse(f)).map(y => y.system_prompt);
+  const af = new AgentFactory({
+    prompt_coding, prompt_italia_beginner, prompt_italia_conversational, prompt_react
+  })
+
+  const ollama = new Ollama({ host: 'http://192.168.2.132:11434' });
+  return new AiModule(ollama, af);
+}

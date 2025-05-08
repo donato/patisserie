@@ -3,7 +3,7 @@ import { extractDiscordId, getChannel } from './utils/discord-utils';
 import JSONdb from 'simple-json-db';
 import { TornModule } from './modules/torn/torn_module';
 import { AiModule, INFO_PREFIX } from './modules/ai/ollama';
-import { Models } from './modules/ai/prompts';
+import { AgentType } from './modules/ai/agents';
 import { Translation } from './modules/ai/language';
 import { Db } from './utils/db';
 import { Message as OllamaMessage } from 'ollama'
@@ -76,7 +76,7 @@ export async function onMessage(ollama: AiModule, msg: any) {
 
   if (command === "!ai") {
     const prompt = text.slice(3);
-    const replyIterator = await ollama.generate(prompt, Models.DEEP_SEEK);
+    const replyIterator = await ollama.generate(prompt, AgentType.REACT);
     await sendMessageIterator(msg, replyIterator);
     return;
   }
@@ -144,7 +144,7 @@ export async function onMessage(ollama: AiModule, msg: any) {
         role: 'assistant',
         content: 'Question: ' + text + '\nThought:'
       }];
-    const replyIterator = await ollama.chat(conversation, Models.AGENT);
+    const replyIterator = await ollama.chat(conversation, AgentType.REACT);
     await sendMessageIterator(msg, replyIterator);
     return;
   }
@@ -152,15 +152,14 @@ export async function onMessage(ollama: AiModule, msg: any) {
   if ([CHANNEL_ITALIA_ADVANCED, CHANNEL_ITALIA_BEGINNER, CHANNEL_DEEPSEEK].includes(msg.channel.id)) {
     await msg.channel.sendTyping();
     const conversation = await getConversation(msg);
-    const CHANNEL_MAP: { [key: string]: Models } = {
-      [CHANNEL_ITALIA_ADVANCED]: Models.ITALIA,
-      [CHANNEL_ITALIA_BEGINNER]: Models.ITALIA_BEGINNER,
-      [CHANNEL_DEEPSEEK]: Models.DEEP_SEEK,
+    const CHANNEL_MAP: { [key: string]: AgentType } = {
+      [CHANNEL_ITALIA_ADVANCED]: AgentType.ITALIA_CONVERSATIONAL,
+      [CHANNEL_ITALIA_BEGINNER]: AgentType.ITALIA_BEGINNER,
+      [CHANNEL_DEEPSEEK]: AgentType.CODING,
     };
-    const model = CHANNEL_MAP[msg.channel.id];
-    // Do chat
+    const agentType = CHANNEL_MAP[msg.channel.id];
     let replyIterator;
-    replyIterator = ollama.chat(conversation, model);
+    replyIterator = ollama.chat(conversation, agentType);
     const unused = await sendMessageIterator(msg, replyIterator);
   }
 
