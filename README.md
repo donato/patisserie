@@ -10,18 +10,23 @@ https://discord.com/api/oauth2/authorize?client_id=957473918887792700&permission
     # Connect to unraid terminal
     cd /mnt/user/development/patisserie
     docker build . --tag donato/patisserie
+    docker build sandbox-executor/ --tag donato/sandbox-executor
     ```
 
-2. In the Unraid UI create a new docker and set environment variables for:
-  + CLIENT_TOKEN= from discord
-  + REDIS_HOST
-3. Mount
-
-    ```sh
-    /app/src = /mnt/user/development/patisserie/src/
-    /app/db = /mnt/user/appdata/patisserie/
-    ```
-
+2. In the Unraid UI, go to Docker > (scroll down) > Add Container
+  + There will be no template, so skip that box
+  + Repository: donato/sandbox-executor:latest 
+    + do same thing for patisserie
+  + Network Type: MyNet
+  + Set environment variables (patisserie)
+    + CLIENT_TOKEN= from discord
+    + REDIS_HOST=redis://my-redis (based on container settings)
+  + Mount folders
+      ```sh
+      /app/src = /mnt/user/development/patisserie/src/
+      /app/db = /mnt/user/appdata/patisserie/
+      /app = /mnt/user/development/patisserie/sandbox-executor
+      ```
 4. In Unraid, Docker, click "Advanced" and click "Force update"
 
 # How to add new JS Library
