@@ -131,6 +131,9 @@ export async function onMessage(ollama: AiModule, msg: any) {
 
   if (msg.channel.id == CHANNEL_AGENT) {
     await msg.channel.sendTyping();
+    if (text == 'reset') {
+      return;
+    }
     // const conversation = (await getConversation(msg)).slice(-1);
     const conversation = [
       {

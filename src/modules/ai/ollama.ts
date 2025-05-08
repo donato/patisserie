@@ -5,7 +5,7 @@ import { executeToolCalls, createToolPrompt, triggerToolCall, getToolDefinitions
 
 export const INFO_PREFIX = '[info]';
 // Somewhat arbitrary, but the default value was insanely low
-const CONTEXT_LENGTH = 100000;
+const CONTEXT_LENGTH = 16000;
 
 function generate(ollama: Ollama, model: Models, prompt: string) {
   console.log('------------------------------------');
@@ -93,12 +93,10 @@ function* handleError(e: unknown) {
   }
 }
 
-function parseAgentResponse(response: string): ToolCall | string {
-  const lines = response.split('\n').filter(l => l != '');
-  const finalLine = lines[lines.length - 1];
-  if (finalLine && finalLine.includes('Action:')) {
+function extractToolCall(line: string): ToolCall | null {
+  if (line && line.includes('Action:')) {
     try {
-      const json = JSON.parse(finalLine.split('Action: ')[1]);
+      const json = JSON.parse(line.split('Action: ')[1]);
       const toolCall: ToolCall = {
         function: {
           name: json['function_name'],
@@ -107,15 +105,11 @@ function parseAgentResponse(response: string): ToolCall | string {
       };
       return toolCall;
     } catch (e) {
-      console.log(response);
+      console.log(line);
       console.log(e);
-      return 'Error';
     }
-  } else if (finalLine && finalLine.includes('Final Answer')) {
-    return finalLine.split('Final Answer: ')[1];
-  } else {
-    return response;
   }
+  return null;
 }
 
 export class AiModule {
@@ -132,14 +126,21 @@ export class AiModule {
         prompt = `${createToolPrompt(getToolDefinitions())}Question: ${prompt}\n`;
       }
       yield* initialize(this.ollama, model);
-      while (true) {
+      let iterations = 0;
+      while (iterations++ < 100) {
         const generateResponse = await generate(this.ollama, model, prompt);
+        const response = generateResponse.response;
 
-        const result = parseAgentResponse(generateResponse.response)
-        if (typeof result == "string") {
-          yield result;
+        // This will yield thoughts and actions as well
+        yield response;
+        const lines = response.split('\n').filter(l => l != '');
+        const finalLine = lines[lines.length - 1];
+
+        const result = extractToolCall(finalLine)
+        if (response.includes('Final Answer:')) {
           return;
-        } else {
+        }
+        if (result) {
           const toolResults = await triggerToolCall(result);
           prompt += generateResponse.response + `Observation: ${toolResults}\n`;
         }
@@ -183,28 +184,32 @@ export class AiModule {
     // helper function required to allow batching yields together for streamOutput()
     async function* iterateThroughStreamManualParsing(ollama: Ollama) {
       let iterations = 0;
-      while (true && iterations++ < 3) {
+      let lastLine = '';
+      while (iterations++ < 100) {
         const s1 = await chat(ollama, model, msgs);
         const s2 = await transformAsyncIterator(s1, (i => i.message.content));
+        
         for await (const line of batchByNewlines(s2)) {
+          lastLine = line;
           yield line;
           // msg[0] = system prompt
           // msg[1] = user prompt
           // msg[2] = reasoning
           msgs[2].content += line;
 
-          // Handle custom formatted function calls
-          const result = parseAgentResponse(line)
-          if (typeof result == "string") {
-            if (result.includes('Final Answer')) {
-              return;
-            }
-          } else {
+          const result = extractToolCall(line)
+          if (result) {
             console.log(`++ [ Function Call : ${JSON.stringify(result)}] ++`);
             const toolResults = await triggerToolCall(result);
             console.log(`++ [ Function Results : ${toolResults}] ++`);
-            msgs[2].content += `Observation: ${toolResults}\n`;
+            const observation = `Observation: ${toolResults}\n`;
+            yield observation;
+            msgs[2].content += observation;
           }
+        }
+        // If it was not 'stop'ed on an Action, then we can finish
+        if (!lastLine.includes('Action:')) {
+          return;
         }
       }
     }
@@ -221,16 +226,10 @@ export class AiModule {
 
     try {
       yield* initialize(this.ollama, model);
-      if (model == Models.AGENT) {
-        if (isToolcalling(model)) {
-          yield* streamOutput(iterateThroughStreamWithNormalFunctionCalling(this.ollama));
-        } else {
-          yield* streamOutput(iterateThroughStreamManualParsing(this.ollama));
-        }
+      if (isToolcalling(model)) {
+        yield* streamOutput(iterateThroughStreamWithNormalFunctionCalling(this.ollama));
       } else {
-        const stream = await chat(this.ollama, model, msgs);
-        const s2 = await transformAsyncIterator(stream, (i => i.message.content));
-        yield* streamOutput(s2);
+        yield* streamOutput(iterateThroughStreamManualParsing(this.ollama));
       }
     } catch (e) {
       yield* handleError(e);
