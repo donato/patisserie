@@ -53,7 +53,7 @@ export class Agent {
     readonly prefillText = '') { }
 
   public toString = (): string => {
-    return `Agent (type: ${this.type}, model_id: ${this.model_id})`;
+    return `Agent (type: ${AgentType[this.type]}, model_id: ${this.model_id})`;
   }
 }
 

@@ -150,9 +150,10 @@ interface MyChatResponse {
 }
 
 function info(content: string): MyChatResponse {
+  const f = content.split('\n').map(line =>  `${INFO_PREFIX} ${line}`);
   return {
     type: 'info',
-    content: `${INFO_PREFIX} ${content}`
+    content: f.join('\n')
   }
 }
 
@@ -182,10 +183,14 @@ export class AiModule {
         const response = generateResponse.response;
 
         // This will yield thoughts and actions as well
-        yield text(response);
+        yield info(response);
         const lines = response.split('\n').filter(l => l != '');
         const finalLine = lines[lines.length - 1];
 
+        if (finalLine.indexOf('Final Answer:') == 0) {
+          yield text(finalLine.split('Final Answer:')[1]);
+          return;
+        }
         const toolCall = extractToolCall(finalLine)
         if (toolCall) {
           let toolResults;
@@ -323,7 +328,9 @@ export class AiModule {
     yield '\n\n';
     iterator = this.generateInternal(sb, AgentType.ITALIA_TRANSLATE_PHRASES);
     for await (const output of iterator) {
-      yield output.content;
+      if (output.type == 'text') {
+        yield `${INFO_PREFIX} ${output.content}`;
+      }
     }
   }
 }
