@@ -1,0 +1,14 @@
+Name:
+Date of Birth (yyyy/mm/dd):
+Place of Birth (city, Country):
+Stats (10-20):
+  Strength:
+  Dexterity:
+  Charisma:
+  Constitution:
+  Intelligence:
+  Wisdom:
+Likes:
+  - <item>: <description>
+Traits:
+  - <

@@ -1,15 +1,14 @@
-  import fs from 'fs'
-import YAML from 'yaml'
 import { ChatResponse, GenerateResponse, Ollama, Message as OllamaMessage, Tool, ToolCall } from 'ollama'
-import { batchByNewlines, streamOutput, transformAsyncIterator } from './stream-utils'
-import { AgentFactory, Agent, AgentType, useManualToolCalling, useNativeToolCalling} from './agents';
-import { executeToolCalls, createToolPrompt, triggerToolCall, getToolDefinitions } from './tools';
+import { streamForChat, transformAsyncIterator } from './stream-utils'
+import { createAgentFactory, AgentFactory, Agent, AgentType, useManualToolCalling, useNativeToolCalling } from './agents';
+import { executeToolCalls, createToolPrompt, triggerToolCall } from './tools';
 import { executePython } from './tools-python-interpreter';
 
+const OLLAMA_HOST = 'http://192.168.1.132:11434'
 export const INFO_PREFIX = '[info]';
+
 // Somewhat arbitrary, but the default value was insanely low
 const CONTEXT_LENGTH = 16000;
-
 const MAX_ITERATIONS = 10;
 
 function generate(ollama: Ollama, agent: Agent, prompt: string) {
@@ -33,7 +32,7 @@ function generate(ollama: Ollama, agent: Agent, prompt: string) {
 }
 
 function chat(ollama: Ollama, agent: Agent, msgs: OllamaMessage[]) {
-  const tools = useNativeToolCalling(agent) ? getToolDefinitions() : [];
+  const tools = useNativeToolCalling(agent) ? agent.tools : [];
 
   console.log('------------------------------------');
   console.log(`ollama.chat [${agent}]`);
@@ -60,19 +59,20 @@ async function isModelActive(ollama: Ollama, agent: Agent) {
     m => m.name == agent.model_id);
 }
 
-async function* initialize(ollama: Ollama, agent: Agent) {
+async function* initialize(ollama: Ollama, agent: Agent): AsyncIterable<MyChatResponse> {
   try {
     if (await isModelActive(ollama, agent)) {
       return;
     }
   } catch (e) {
+    console.log(e);
     throw new Error("Unable to connect to TenStep Gaming PC");
   }
 
   let isActive = false;
   let retries = 0;
   while (!isActive && retries < 3) {
-    yield `${INFO_PREFIX} Attempting to boot ${agent}`;
+    yield info(`Attempting to boot ${agent}`);
     generate(ollama, agent, 'test');
 
     await new Promise(resolve => setTimeout(resolve, 2000));
@@ -81,18 +81,18 @@ async function* initialize(ollama: Ollama, agent: Agent) {
     retries++;
   }
   if (isActive) {
-    yield `${INFO_PREFIX} Model ${agent} running!`;
+    yield info(`Model ${agent} running!`);
   } else {
-    yield `${INFO_PREFIX} Stopping retrying.`;
+    yield info(`Stopping retrying.`);
   }
 }
 
 function* handleError(e: unknown) {
   console.log(e);
   if (e instanceof Error) {
-    yield `${INFO_PREFIX} Error: ${e.message.toString()}`;
+    yield info(`Error: ${e.message.toString()}`);
   } else {
-    yield `${INFO_PREFIX} Unknown error, check logs`;
+    yield info(`Unknown error, check logs`);
   }
 }
 
@@ -113,7 +113,7 @@ function extractLastMarkdownCode(markdown: string): string | null {
 interface PythonToolCall {
   code: string
 }
-function isPythonToolCall(o : PythonToolCall | ToolCall): o is PythonToolCall {
+function isPythonToolCall(o: PythonToolCall | ToolCall): o is PythonToolCall {
   return typeof (o as PythonToolCall).code == 'string';
 }
 
@@ -144,17 +144,36 @@ function extractToolCall(text: string): ToolCall | PythonToolCall | null {
   return null;
 }
 
+interface MyChatResponse {
+  type: 'info' | 'text' | 'result'
+  content: string
+}
+
+function info(content: string): MyChatResponse {
+  return {
+    type: 'info',
+    content: `${INFO_PREFIX} ${content}`
+  }
+}
+
+function text(content: string) : MyChatResponse {
+  return {
+    type: 'text',
+    content
+  }
+}
+
 export class AiModule {
   constructor(private readonly ollama: Ollama, private readonly agentFactory: AgentFactory) {
     // todo(): Add a queue and/or lock
   }
 
-  async *generate(prompt: string, agentType: AgentType): AsyncIterableIterator<string> {
+  private async *generateInternal(prompt: string, agentType: AgentType): AsyncIterableIterator<MyChatResponse> {
     const agent = this.agentFactory.create(agentType);
     try {
       // Note: Native tool calling is not supported by Ollama for generate APIs.
       if (useManualToolCalling(agent)) {
-        prompt = `${createToolPrompt(getToolDefinitions())}Question: ${prompt}\n`;
+        prompt = `${createToolPrompt(agent.tools)}Question: ${prompt}\n`;
       }
       yield* initialize(this.ollama, agent);
       let iterations = 0;
@@ -163,20 +182,22 @@ export class AiModule {
         const response = generateResponse.response;
 
         // This will yield thoughts and actions as well
-        yield response;
+        yield text(response);
         const lines = response.split('\n').filter(l => l != '');
         const finalLine = lines[lines.length - 1];
 
-        if (response.includes('Final Answer:')) {
-          return;
-        }
         const toolCall = extractToolCall(finalLine)
-        if (toolCall && isPythonToolCall(toolCall)) {
-          const toolResults = await executePython(toolCall.code);
+        if (toolCall) {
+          let toolResults;
+          if (isPythonToolCall(toolCall)) {
+            toolResults = await executePython(toolCall.code);
+          } else {
+            toolResults = await triggerToolCall(toolCall);
+          }
+          yield info(`Observation: ${toolResults}\n`);
           prompt += generateResponse.response + `Observation: ${toolResults}\n`;
-        } else if (toolCall) {
-          const toolResults = await triggerToolCall(toolCall);
-          prompt += generateResponse.response + `Observation: ${toolResults}\n`;
+        } else {
+          return;
         }
       }
     } catch (e) {
@@ -184,19 +205,18 @@ export class AiModule {
     }
   }
 
-  async *chat(msgs: OllamaMessage[], agentType: AgentType): AsyncIterable<string> {
+  private async *chatInternal(msgs: OllamaMessage[], agentType: AgentType): AsyncIterable<MyChatResponse> {
     const agent = this.agentFactory.create(agentType);
     this.ollama.abort();
     if (!msgs.length) { return; }
 
-    // helper function required to allow batching yields together for streamOutput()
-    async function* iterateThroughStreamWithNormalFunctionCalling(ollama: Ollama) {
+    async function* iterateThroughStreamWithNormalFunctionCalling(ollama: Ollama): AsyncIterable<MyChatResponse> {
       let iterations = 0;
       while (true && iterations++ < MAX_ITERATIONS) {
         const stream = await chat(ollama, agent, msgs);
         let receivedFunctionCall = false;
         for await (const s of stream) {
-          yield s.message.content;
+          yield text(s.message.content);
           if (s.message.tool_calls && s.message.tool_calls.length) {
             receivedFunctionCall = true;
             console.log(`++ [ Function Call : ${JSON.stringify(s.message.tool_calls)}] ++`);
@@ -216,44 +236,43 @@ export class AiModule {
       }
     }
 
-    // helper function required to allow batching yields together for streamOutput()
-    async function* iterateThroughStreamManualParsing(ollama: Ollama) {
+    async function* iterateThroughStreamManualParsing(ollama: Ollama): AsyncIterable<MyChatResponse> {
       let iterations = 0;
       while (iterations++ < MAX_ITERATIONS) {
         const s1 = await chat(ollama, agent, msgs);
         const s2 = await transformAsyncIterator(s1, (i => i.message.content));
-        
+
         let sBuilder = '';
         for await (const str of s2) {
           sBuilder += str;
-          yield str;
+          yield text(str);
         }
 
         const toolCall = extractToolCall(sBuilder)
-        if (toolCall && isPythonToolCall(toolCall)) {
-          const toolResults = await executePython(toolCall.code);
-          const observation = `\nObservation: ${toolResults}\n`;
-          yield observation;
-          sBuilder += observation;
-        } else if (toolCall) {
+        if (toolCall) {
           console.log(`++ [ Function Call : ${JSON.stringify(toolCall)}] ++`);
-          const toolResults = await triggerToolCall(toolCall);
+          let toolResults;
+          if (isPythonToolCall(toolCall)) {
+            toolResults = await executePython(toolCall.code);
+          } else {
+            toolResults = await triggerToolCall(toolCall);
+          }
           console.log(`++ [ Function Results : ${toolResults}] ++`);
           const observation = `Observation: ${toolResults}\n`;
-          yield observation;
+          yield text(observation);
           sBuilder += observation;
         } else {
           // If it was not 'stop'ed on an Action, then stop looping
           return;
         }
-        // The final message is the Assistant message that is initially prefilled, and then iteratively generated.
+        // With manual parsing we have to keep editing the Assistant message, to iteratively generate it.
         msgs[msgs.length - 1].content += sBuilder;
       }
     }
 
     let system_prompt = agent.system_prompt;
     if (useManualToolCalling(agent)) {
-      system_prompt += `\n\n\n${createToolPrompt(getToolDefinitions())}`;
+      system_prompt += `\n\n\n${createToolPrompt(agent.tools)}`;
     }
 
     msgs.unshift({
@@ -269,28 +288,50 @@ export class AiModule {
     try {
       yield* initialize(this.ollama, agent);
       if (useNativeToolCalling(agent)) {
-        yield* streamOutput(iterateThroughStreamWithNormalFunctionCalling(this.ollama));
+        yield* iterateThroughStreamWithNormalFunctionCalling(this.ollama);
       } else {
-        yield* streamOutput(iterateThroughStreamManualParsing(this.ollama));
+        yield* iterateThroughStreamManualParsing(this.ollama);
       }
     } catch (e) {
       yield* handleError(e);
     }
   }
+
+  async *generate(prompt: string, agentType: AgentType): AsyncIterable<string> {
+    const iterator = this.generateInternal(prompt, agentType);
+    for await (const output of iterator) {
+      yield output.content;
+    }
+  }
+
+  async *chat(msgs: OllamaMessage[], agentType: AgentType): AsyncIterable<string> {
+    const iterator = this.chatInternal(msgs, agentType);
+    for await (const output of iterator) {
+      yield output.content;
+    }
+  }
+
+  async *chatItalian(msgs: OllamaMessage[]) : AsyncIterable<string> {
+    let iterator = this.chatInternal(msgs, AgentType.ITALIA_CONVERSATIONAL);
+    let sb = '';
+    for await (const output of iterator) {
+      yield output.content;
+      if (output.type == 'text') {
+        sb += output.content;
+      }
+    }
+    yield '\n\n';
+    iterator = this.generateInternal(sb, AgentType.ITALIA_TRANSLATE_PHRASES);
+    for await (const output of iterator) {
+      yield output.content;
+    }
+  }
 }
 
 export async function createAiModule(): Promise<AiModule> {
-  const allFiles = await Promise.all([
-      fs.promises.readFile('./modules/ai/prompts/react_agent.yml', 'utf8'),
-      fs.promises.readFile('./modules/ai/prompts/smolagents_code_agent.yml', 'utf8'),
-      fs.promises.readFile('./modules/ai/prompts/italia_beginner.yml', 'utf8'),
-      fs.promises.readFile('./modules/ai/prompts/italia_agent.yml', 'utf8'),
-  ]);
-  const [prompt_react, prompt_coding, prompt_italia_beginner, prompt_italia_conversational] = allFiles.map((f) => YAML.parse(f)).map(y => y.system_prompt);
-  const af = new AgentFactory({
-    prompt_coding, prompt_italia_beginner, prompt_italia_conversational, prompt_react
-  })
+  const agentFactory = await createAgentFactory();
 
-  const ollama = new Ollama({ host: 'http://192.168.2.132:11434' });
-  return new AiModule(ollama, af);
+  const ollama = new Ollama({ host: OLLAMA_HOST });
+  return new AiModule(ollama, agentFactory);
 }
+

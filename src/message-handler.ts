@@ -1,13 +1,10 @@
 import { bakeryStats, giftPastry } from './modules/bakery/bakery';
 import { extractDiscordId, getChannel } from './utils/discord-utils';
 import JSONdb from 'simple-json-db';
-import { TornModule } from './modules/torn/torn_module';
 import { AiModule, INFO_PREFIX } from './modules/ai/ollama';
 import { AgentType } from './modules/ai/agents';
-import { Translation } from './modules/ai/language';
-import { Db } from './utils/db';
 import { Message as OllamaMessage } from 'ollama'
-import { sendMessageIterator, transformAsyncIterator } from './modules/ai/stream-utils';
+import { sendMessageIterator, streamForChat } from './modules/ai/stream-utils';
 
 
 let bakeryDb = new JSONdb('/app/db/bakery-data.json');
@@ -129,19 +126,20 @@ export async function onMessage(ollama: AiModule, msg: any) {
     return;
   }
 
-  if ([CHANNEL_ITALIA_ADVANCED, CHANNEL_ITALIA_BEGINNER, CHANNEL_CODING_AGENT].includes(msg.channel.id)) {
+  if (command === "!aic") {
+    const prompt = text.slice(3);
+    const replyIterator = await ollama.generate(prompt, AgentType.CODING);
+    await sendMessageIterator(msg, replyIterator);
+    return;
+  }
+
+  if ([CHANNEL_ITALIA_ADVANCED, CHANNEL_ITALIA_BEGINNER].includes(msg.channel.id)) {
     await msg.channel.sendTyping();
     const conversation = await getConversation(msg);
-    const CHANNEL_MAP: { [key: string]: AgentType } = {
-      [CHANNEL_ITALIA_ADVANCED]: AgentType.ITALIA_CONVERSATIONAL,
-      [CHANNEL_ITALIA_BEGINNER]: AgentType.ITALIA_BEGINNER,
-      [CHANNEL_AGENT]: AgentType.REACT,
-      [CHANNEL_CODING_AGENT]: AgentType.CODING,
-    };
-    const agentType = CHANNEL_MAP[msg.channel.id];
-    let replyIterator;
-    replyIterator = ollama.chat(conversation, agentType);
-    const unused = await sendMessageIterator(msg, replyIterator);
+    if (conversation.length) {
+      const stream = streamForChat(ollama.chatItalian(conversation));
+      const unused = await sendMessageIterator(msg, stream);
+    }
   }
 
   if (!isAdmin) {

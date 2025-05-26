@@ -51,7 +51,7 @@ export async function* stripThinkingTokens(stream:AsyncIterable<string>) {
   yield* stream;
 }
 
-export async function* streamOutput(stream: AsyncIterable<string>) {
+export async function* streamForChat(stream: AsyncIterable<string>) {
   let msgBuffer = '';
   for await (const newWord of stream) {
     if (msgBuffer.length + newWord.length > 500) {
@@ -69,4 +69,12 @@ export async function* streamOutput(stream: AsyncIterable<string>) {
   if (msgBuffer.length) {
     yield msgBuffer;
   }
+}
+
+export async function extractFinalResult(stream: AsyncIterable<string>) {
+  let lastLine = '';
+  for await (const s of stream) {
+    lastLine = s;
+  }
+  return lastLine;
 }
