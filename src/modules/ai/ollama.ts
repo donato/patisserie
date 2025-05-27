@@ -317,7 +317,24 @@ export class AiModule {
   }
 
   async *chatItalian(msgs: OllamaMessage[]) : AsyncIterable<string> {
-    let iterator = this.chatInternal(msgs, AgentType.ITALIA_CONVERSATIONAL);
+    let iterator;
+
+    // First review for natural/idiomatic phrasing
+    iterator = this.generateInternal(msgs[msgs.length-1].content, AgentType.ITALIA_IDIOMATIC);
+    for await (const output of iterator) {
+      if (output.type == 'text') {
+        if (output.content.includes('No Suggestions')) {
+          console.log(output.content);
+          continue;
+        } else {
+          yield output.content;
+          return;
+        }
+      }
+    }
+
+    // Now continue the conversation
+    iterator = this.chatInternal(msgs, AgentType.ITALIA_CONVERSATIONAL);
     let sb = '';
     for await (const output of iterator) {
       yield output.content;
@@ -325,7 +342,13 @@ export class AiModule {
         sb += output.content;
       }
     }
-    yield '\n\n';
+    
+    // double linebreak to cause discord to render [INFO] messages in a separate
+    // chat message - which makes it easier to extract conversation from the
+    // channel.
+    yield '\n\n'; 
+
+    // Now translate any confusing phrases, to make it easier to continue
     iterator = this.generateInternal(sb, AgentType.ITALIA_TRANSLATE_PHRASES);
     for await (const output of iterator) {
       if (output.type == 'text') {
@@ -341,4 +364,3 @@ export async function createAiModule(): Promise<AiModule> {
   const ollama = new Ollama({ host: OLLAMA_HOST });
   return new AiModule(ollama, agentFactory);
 }
-

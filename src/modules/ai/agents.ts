@@ -40,6 +40,7 @@ export enum AgentType {
   ITALIA_BEGINNER,
   ITALIA_CONVERSATIONAL,
   ITALIA_TRANSLATE_PHRASES,
+  ITALIA_IDIOMATIC,
 }
 
 export class Agent {
@@ -63,6 +64,7 @@ interface Prompts {
   prompt_italia_beginner: string,
   prompt_italia_conversational: string
   prompt_translate_phrases: string
+  prompt_idiomatic: string
 }
 
 export class AgentFactory {
@@ -79,6 +81,8 @@ export class AgentFactory {
         return new Agent(agentType, 1.0, res, ModelId.GEMMA_INSTRUCT, /* tools= */[], /* enable_code= */ true);
       case AgentType.ITALIA_BEGINNER:
         return new Agent(agentType, 1.0, this.prompts.prompt_italia_beginner, ModelId.GEMMA_INSTRUCT, /* tools= */[DiceTool, NoActionTool]);
+      case AgentType.ITALIA_IDIOMATIC:
+        return new Agent(agentType, 1.0, this.prompts.prompt_idiomatic, ModelId.GEMMA_INSTRUCT)
       case AgentType.ITALIA_CONVERSATIONAL:
         return new Agent(agentType, 1.0, this.prompts.prompt_italia_conversational, ModelId.GEMMA_INSTRUCT);
       case AgentType.ITALIA_TRANSLATE_PHRASES:
@@ -98,9 +102,10 @@ export async function createAgentFactory() {
   ]);
   const allYaml = allFiles.map((f) => YAML.parse(f));
   const [prompt_react, prompt_coding, prompt_italia_beginner, prompt_italia_conversational] = allYaml.map(y => y.system_prompt);
-  const prompt_translate_phrases = allYaml[3].split_phrases;
+  const prompt_translate_phrases = allYaml[3].translate_phrases;
+  const prompt_idiomatic = allYaml[3].prompt_idiomatic
   return new AgentFactory({
     prompt_coding, prompt_italia_beginner, prompt_italia_conversational, prompt_react,
-    prompt_translate_phrases
+    prompt_translate_phrases, prompt_idiomatic
   });
 }
