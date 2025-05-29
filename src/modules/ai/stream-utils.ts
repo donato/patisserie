@@ -1,7 +1,11 @@
-import { INFO_PREFIX } from './ollama'
+import { INFO_PREFIX } from './common'
 
 
-export async function* transformAsyncIterator<T, V>(iterator: AsyncIterableIterator<T>, transformFn: (item: T) => V|false) {
+export async function* emptyIterator<T>() {
+  return (async function*():AsyncIterable<T> {})();
+}
+
+export async function* transformAsyncIterator<T, V>(iterator: AsyncIterable<T>, transformFn: (item: T) => V|false) {
   for await (const item of iterator) {
     const result = await transformFn(item);
     // break the chain if the transformation ever returns false

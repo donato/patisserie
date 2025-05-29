@@ -1,9 +1,10 @@
 import { bakeryStats, giftPastry } from './modules/bakery/bakery';
 import { extractDiscordId, getChannel } from './utils/discord-utils';
 import JSONdb from 'simple-json-db';
-import { AiModule, INFO_PREFIX } from './modules/ai/ollama';
+import { INFO_PREFIX } from './modules/ai/common';
+import { AiModule } from './modules/ai/ai-module';
 import { AgentType } from './modules/ai/agents';
-import { Message as OllamaMessage } from 'ollama'
+import { ChatMessage } from './modules/ai/provider';
 import { sendMessageIterator, streamForChat } from './modules/ai/stream-utils';
 
 
@@ -20,11 +21,11 @@ const CHANNEL_CODING_AGENT = '1335694908887011458'; // interactive channel
 const CHANNEL_AGENT = '1368952263627903109';
 const VANGUARD_ASSASSIN_SERVER_ID = '1253005595779272816';
 
-async function getConversation(msg: any): Promise<OllamaMessage[]> {
+async function getConversation(msg: any): Promise<ChatMessage[]> {
   const now = Date.now();
   const MAX_TIME_ELAPSED = 20 * 60 * 1000;
   const msgArray: Array<any> = await msg.channel.messages.fetch({ limit: 100 });
-  return msgArray.reverse().reduce<OllamaMessage[]>((memo, m) => {
+  return msgArray.reverse().reduce<ChatMessage[]>((memo, m) => {
     if (now - m.createdTimestamp > MAX_TIME_ELAPSED) {
       return memo;
     }

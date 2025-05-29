@@ -37,7 +37,7 @@ export const NoActionTool: MyTool = {
   type: 'function',
   function: {
     name: 'no_information_needed',
-    description: 'No more observations are needed to answer the Question.',
+    description: 'No more observations are needed to answer the Question',
     parameters: {
       type: 'string',
       required: [],

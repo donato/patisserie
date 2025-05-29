@@ -50,6 +50,7 @@ export class Agent {
     readonly system_prompt: string,
     readonly model_id: ModelId,
     readonly tools: MyTool[] = [],
+    readonly stop_sequence: string[] = [],
     readonly enable_code = false,
     readonly prefillText = '') { }
 
@@ -71,14 +72,20 @@ export class AgentFactory {
   constructor(readonly prompts: Prompts) { }
 
   create(agentType: AgentType) {
+    
     switch (agentType) {
       case AgentType.REACT:
         const prefillText = 'Question: ';
-        return new Agent(agentType, 1.0, this.prompts.prompt_react, ModelId.GEMMA_INSTRUCT, /* tools= */[DiceTool, NoActionTool], /* enable_code= */ false, prefillText);
+        return new Agent(agentType, 1.0, this.prompts.prompt_react, ModelId.GEMMA_INSTRUCT, 
+          /* tools= */[DiceTool, NoActionTool], 
+          /* stop_sequenc= */['Observation:'],
+          /* enable_code= */ false, prefillText);
       case AgentType.CODING:
         const promptTemplate = this.prompts.prompt_coding;
         var res = nunjucks.renderString(promptTemplate, { tools: [], agents: [] });
-        return new Agent(agentType, 1.0, res, ModelId.GEMMA_INSTRUCT, /* tools= */[], /* enable_code= */ true);
+        return new Agent(agentType, 1.0, res, ModelId.GEMMA_INSTRUCT, /* tools= */[],
+          /* stop_sequenc= */[],
+          /* enable_code= */ true);
       case AgentType.ITALIA_BEGINNER:
         return new Agent(agentType, 1.0, this.prompts.prompt_italia_beginner, ModelId.GEMMA_INSTRUCT, /* tools= */[DiceTool, NoActionTool]);
       case AgentType.ITALIA_IDIOMATIC:

@@ -1,0 +1,12 @@
+system_prompt: |
+  12.5 hours minus the length of nap, 
+
+  <example>
+  Total sleep = 12.5
+  Nap time = 3 hrs
+  wake up time = 6am
+  Night sleep desired = 9.5
+  Bedtime = 8:30pm
+  So lights off at 8pm
+  Start routine at 7:30pm
+  </example>

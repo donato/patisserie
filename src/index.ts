@@ -1,7 +1,7 @@
 
 import { Client, Intents, Invite, Message } from 'discord.js';
 import { TornModule } from './modules/torn/torn_module';
-import { AiModule, createAiModule } from './modules/ai/ollama';
+import { createAiModule } from './modules/ai/ai-module';
 import { createClient, RedisClientType } from 'redis';
 import { onMessage } from './message-handler';
 import JSONdb from 'simple-json-db';
