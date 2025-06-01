@@ -81,9 +81,10 @@ export class AiModule {
   private async *generateInternal(prompt: string, agentType: AgentType): AsyncIterableIterator<AgentResponse> {
     const agent = this.agentFactory.create(agentType);
     try {
+      prompt = agent.prefillText + prompt;
       // Note: Native tool calling is not supported by Ollama for generate APIs.
       if (useManualToolCalling(agent)) {
-        prompt = `${createToolPrompt(agent.tools)}Question: ${prompt}\n`;
+        prompt = `${createToolPrompt(agent.tools)} ${prompt}\n`;
       }
       yield* init(this.ollama, agent);
       let iterations = 0;
@@ -92,7 +93,7 @@ export class AiModule {
         const response = generateResponse.content;
 
         // This will yield thoughts and actions as well
-        yield info(response);
+        // yield info(response);
         const lines = response.split('\n').filter(l => l != '');
         const finalLine = lines[lines.length - 1];
 

@@ -41,6 +41,7 @@ export enum AgentType {
   ITALIA_CONVERSATIONAL,
   ITALIA_TRANSLATE_PHRASES,
   ITALIA_IDIOMATIC,
+  BEDTIME,
 }
 
 export class Agent {
@@ -60,6 +61,7 @@ export class Agent {
 }
 
 interface Prompts {
+  prompt_bedtime: string,
   prompt_react: string,
   prompt_coding: string,
   prompt_italia_beginner: string,
@@ -94,11 +96,14 @@ export class AgentFactory {
         return new Agent(agentType, 1.0, this.prompts.prompt_italia_conversational, ModelId.GEMMA_INSTRUCT);
       case AgentType.ITALIA_TRANSLATE_PHRASES:
         return new Agent(agentType, 1.0, this.prompts.prompt_translate_phrases, ModelId.GEMMA_INSTRUCT);
+      case AgentType.BEDTIME:
+        return new Agent(agentType, 1.0, this.prompts.prompt_bedtime, ModelId.GEMMA_INSTRUCT, [], [], /* enable_code= */ false, 'Question:');
       default:
         throw new Error(`Unknown agent type: ${agentType}`);
     }
   }
 }
+
 
 export async function createAgentFactory() {
   const allFiles = await Promise.all([
@@ -106,13 +111,14 @@ export async function createAgentFactory() {
     fs.promises.readFile('./modules/ai/prompts/smolagents_code_agent.yml', 'utf8'),
     fs.promises.readFile('./modules/ai/prompts/italia_beginner.yml', 'utf8'),
     fs.promises.readFile('./modules/ai/prompts/italia_agent.yml', 'utf8'),
+    fs.promises.readFile('./modules/ai/prompts/bedtime.yml', 'utf8'),
   ]);
   const allYaml = allFiles.map((f) => YAML.parse(f));
-  const [prompt_react, prompt_coding, prompt_italia_beginner, prompt_italia_conversational] = allYaml.map(y => y.system_prompt);
+  const [prompt_react, prompt_coding, prompt_italia_beginner, prompt_italia_conversational, prompt_bedtime] = allYaml.map(y => y.system_prompt);
   const prompt_translate_phrases = allYaml[3].translate_phrases;
   const prompt_idiomatic = allYaml[3].prompt_idiomatic
   return new AgentFactory({
     prompt_coding, prompt_italia_beginner, prompt_italia_conversational, prompt_react,
-    prompt_translate_phrases, prompt_idiomatic
+    prompt_translate_phrases, prompt_idiomatic, prompt_bedtime
   });
 }

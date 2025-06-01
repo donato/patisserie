@@ -18,6 +18,7 @@ const PATTIES_ID = '957473918887792700';
 const CHANNEL_ITALIA_ADVANCED = '1345830090780704799';
 const CHANNEL_ITALIA_BEGINNER = '1345897179084099645';
 const CHANNEL_CODING_AGENT = '1335694908887011458'; // interactive channel
+const CHANNEL_SLEEP = '1378427783897808996';
 const CHANNEL_AGENT = '1368952263627903109';
 const VANGUARD_ASSASSIN_SERVER_ID = '1253005595779272816';
 
@@ -134,12 +135,18 @@ export async function onMessage(ollama: AiModule, msg: any) {
     return;
   }
 
-  if ([CHANNEL_ITALIA_ADVANCED, CHANNEL_ITALIA_BEGINNER].includes(msg.channel.id)) {
+  if ([CHANNEL_ITALIA_ADVANCED, CHANNEL_ITALIA_BEGINNER, CHANNEL_SLEEP].includes(msg.channel.id)) {
     await msg.channel.sendTyping();
     const conversation = await getConversation(msg);
     if (conversation.length) {
+      if (msg.channel.id == CHANNEL_SLEEP) {
+      const stream = streamForChat(ollama.chat(conversation, AgentType.BEDTIME));
+      const unused = await sendMessageIterator(msg, stream);
+
+      } else {
       const stream = streamForChat(ollama.chatItalian(conversation));
       const unused = await sendMessageIterator(msg, stream);
+      }
     }
   }
 
