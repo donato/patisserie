@@ -6,6 +6,7 @@ import { AiModule } from './modules/ai/ai-module';
 import { AgentType } from './modules/ai/agents';
 import { ChatMessage } from './modules/ai/provider';
 import { sendMessageIterator, streamForChat } from './modules/ai/stream-utils';
+import { Message, Collection } from 'discord.js';
 
 
 let bakeryDb = new JSONdb('/app/db/bakery-data.json');
@@ -22,10 +23,13 @@ const CHANNEL_SLEEP = '1378427783897808996';
 const CHANNEL_AGENT = '1368952263627903109';
 const VANGUARD_ASSASSIN_SERVER_ID = '1253005595779272816';
 
-async function getConversation(msg: any): Promise<ChatMessage[]> {
+function formatDiscordMessage(msg:Message) {
+  return `[${msg.createdAt.toLocaleString()}] ${msg.content}`
+}
+async function getConversation(msg: Message): Promise<ChatMessage[]> {
   const now = Date.now();
-  const MAX_TIME_ELAPSED = 20 * 60 * 1000;
-  const msgArray: Array<any> = await msg.channel.messages.fetch({ limit: 100 });
+  const MAX_TIME_ELAPSED = 48 * 60 * 1000; // 2 days
+  const msgArray: Collection<string, Message> = await msg.channel.messages.fetch({ limit: 100 });
   return msgArray.reverse().reduce<ChatMessage[]>((memo, m) => {
     if (now - m.createdTimestamp > MAX_TIME_ELAPSED) {
       return memo;
@@ -37,7 +41,7 @@ async function getConversation(msg: any): Promise<ChatMessage[]> {
     if (m.author.id === PATTIES_ID) {
       memo.push({
         role: 'assistant',
-        content: m.content
+        content: formatDiscordMessage(m)
       });
     } else if (m.author.id === msg.author.id) {
       if (m.content == 'reset') {
@@ -45,20 +49,20 @@ async function getConversation(msg: any): Promise<ChatMessage[]> {
       }
       memo.push({
         role: 'user',
-        content: m.content
+        content: formatDiscordMessage(m)
       });
     }
     return memo;
   }, []);
 }
 
-export async function onMessage(ollama: AiModule, msg: any) {
+export async function onMessage(ollama: AiModule, msg: Message) {
   if (msg.author.bot) {
     return;
   }
 
   const text = msg.content;
-  const isAdmin = ADMIN_SERVERS.indexOf(msg.guildId) !== -1;
+  const isAdmin = ADMIN_SERVERS.indexOf(msg.guildId || '') !== -1;
   const [command, arg1, arg2] = text.split(" ");
 
   if (command === '!welcome') {
@@ -140,12 +144,12 @@ export async function onMessage(ollama: AiModule, msg: any) {
     const conversation = await getConversation(msg);
     if (conversation.length) {
       if (msg.channel.id == CHANNEL_SLEEP) {
-      const stream = streamForChat(ollama.chat(conversation, AgentType.BEDTIME));
-      const unused = await sendMessageIterator(msg, stream);
+        const stream = streamForChat(ollama.chat(conversation, AgentType.BEDTIME));
+        const unused = await sendMessageIterator(msg, stream);
 
       } else {
-      const stream = streamForChat(ollama.chatItalian(conversation));
-      const unused = await sendMessageIterator(msg, stream);
+        const stream = streamForChat(ollama.chatItalian(conversation));
+        const unused = await sendMessageIterator(msg, stream);
       }
     }
   }

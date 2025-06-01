@@ -80,7 +80,7 @@ function bake(rarity: string) {
   }
 }
 
-export function giftPastry(senderId: string, receiverId: string, bakeryDb: JSONdb) {
+export function giftPastry(senderId: string, receiverId: string, bakeryDb: JSONdb): Promise<string> {
   const dist = new Distribution(PASTRY_RARITY);
   return new Promise(resolve => {
         const rarity = dist.chooseOne();
