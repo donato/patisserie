@@ -35,6 +35,7 @@ export function useNativeToolCalling(agent: Agent) {
 }
 
 export enum AgentType {
+  EMPTY,
   REACT,
   CODING,
   ITALIA_BEGINNER,
@@ -76,6 +77,8 @@ export class AgentFactory {
   create(agentType: AgentType) {
     
     switch (agentType) {
+      case AgentType.EMPTY:
+        return new Agent(agentType, 1.0, '', ModelId.GEMMA_INSTRUCT);
       case AgentType.REACT:
         const prefillText = 'Question: ';
         return new Agent(agentType, 1.0, this.prompts.prompt_react, ModelId.GEMMA_INSTRUCT, 

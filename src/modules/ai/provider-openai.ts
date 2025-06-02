@@ -29,18 +29,18 @@ export class ProviderOpenaAi implements Provider {
 
   async generate(agent: Agent, prompt: string): Promise<CompletionResponse> {
     const templatePrompt = agent.system_prompt + '\n\n\n' + prompt
-    console.log(templatePrompt);
+    // console.log(templatePrompt);
     const r = await this.client.completions.create({
       model: 'gpt-4o-mini',
       // : agent.system_prompt,
       max_tokens: 1000,
-      prompt: templatePrompt,
+      prompt: templatePrompt.trim(),
       stream: false,
       // temperature: agent.temperature,
       stop: agent.stop_sequence,
     });
 
-    console.log(r);
+    // console.log(r);
     return {
       content: r.choices[0].text
     };

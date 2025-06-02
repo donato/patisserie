@@ -6,6 +6,7 @@ import { executePython } from './tools-python-interpreter';
 import { ProviderOllama } from './provider-ollama';
 import { ToolCall, ChatMessage, Provider } from './provider';
 import { ProviderOpenaAi } from './provider-openai';
+import * as pg from 'pg';
 
 
 function *init(provider: Provider, agent:Agent) {
@@ -74,7 +75,7 @@ function extractToolCall(text: string): ToolCall | PythonToolCall | null {
 
 
 export class AiModule {
-  constructor(private readonly ollama: Provider, private readonly agentFactory: AgentFactory) {
+  constructor(private readonly pgClient : pg.Client, private readonly ollama: Provider, private readonly agentFactory: AgentFactory) {
     // todo(): Add a queue and/or lock
   }
 
@@ -92,11 +93,12 @@ export class AiModule {
         const generateResponse = await this.ollama.generate(agent, prompt);
         const response = generateResponse.content;
 
-        // This will yield thoughts and actions as well
-        // yield info(response);
+        // This will yield thoughts and actions as well.
+        yield text(response);
         const lines = response.split('\n').filter(l => l != '');
         const finalLine = lines[lines.length - 1];
 
+        // TODO - final answer stuff should be isolated to REACT agent 
         if (finalLine && finalLine.indexOf('Final Answer:') == 0) {
           yield text(finalLine.split('Final Answer:')[1]);
           return;
@@ -271,9 +273,9 @@ export class AiModule {
   }
 }
 
-export async function createAiModule(): Promise<AiModule> {
+export async function createAiModule(pgClient:pg.Client): Promise<AiModule> {
   const agentFactory = await createAgentFactory();
 
   const unused = new ProviderOllama();
-  return new AiModule(new ProviderOpenaAi(), agentFactory);
+  return new AiModule(pgClient, new ProviderOpenaAi(), agentFactory);
 }

@@ -8,17 +8,19 @@ import JSONdb from 'simple-json-db';
 import { Db } from './utils/db';
 import { createAppendOnlyLog, AppendOnlyLog } from './modules/torn/append_only_log';
 import * as pg from 'pg';
+import { DiscordLogger } from './utils/discord-logger';
 
 require('dotenv').config(); //initialize dotenv
 
-function createPgClient() {
+async function createPgClient(): Promise<pg.Client> {
   const client = new pg.Client({
     user: 'donato',
     password: 'potato',
     host: 'postgres',
 
   });
-  return client.connect()
+  await client.connect()
+  return client;
   // try {
   //   const res = await client.query('SELECT $1::text as message', ['Hello world!'])
   //   console.log(res.rows[0].message) // Hello world!
@@ -49,7 +51,7 @@ async function init() {
   // const tornDb = new JSONdb('/app/db/torn-data.json');
   const discordDb = new JSONdb('/app/db/discord-data.json');
   // const redisClient = await createRedisClient()
-  // const pgClient = await createPgClient();
+  const pgClient = await createPgClient();
   // tornAppendOnlyLog = await createAppendOnlyLog();
 
   // setInterval(() => {
@@ -62,14 +64,15 @@ async function init() {
   // const tornModule = new TornModule(tornDb, discordDb, tornAppendOnlyLog);
   // tornModule.setDiscordClient(discordClient);
 
-  const aiModule = await createAiModule();
-  discordClient.on('message', (msg: Message) => {
+  const aiModule = await createAiModule(pgClient);
+  const discordLogger = new DiscordLogger(discordClient, /* intervalMs= */ 2000);
+  discordClient.on('messageCreate', (msg: Message) => {
     if (msg.author.bot) {
       return;
     }
 
     // tornModule.onMessage(tornDb, msg);
-    onMessage(aiModule, msg);
+    onMessage(aiModule, msg, discordLogger);
   });
 }
 

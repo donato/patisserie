@@ -6,8 +6,9 @@ import { AiModule } from './modules/ai/ai-module';
 import { AgentType } from './modules/ai/agents';
 import { ChatMessage } from './modules/ai/provider';
 import { sendMessageIterator, streamForChat } from './modules/ai/stream-utils';
-import { Message, Collection } from 'discord.js';
-
+import { Message, Collection, TextChannel } from 'discord.js';
+import { runSim } from './modules/study-group/run-sim';
+import { DiscordLogger } from './utils/discord-logger';
 
 let bakeryDb = new JSONdb('/app/db/bakery-data.json');
 
@@ -56,7 +57,7 @@ async function getConversation(msg: Message): Promise<ChatMessage[]> {
   }, []);
 }
 
-export async function onMessage(ollama: AiModule, msg: Message) {
+export async function onMessage(aiModule: AiModule, msg: Message, discordLogger: DiscordLogger) {
   if (msg.author.bot) {
     return;
   }
@@ -127,15 +128,23 @@ export async function onMessage(ollama: AiModule, msg: Message) {
 
   if (command === "!ai") {
     const prompt = text.slice(3);
-    const replyIterator = await ollama.generate(prompt, AgentType.REACT);
+    const replyIterator = await aiModule.generate(prompt, AgentType.REACT);
     await sendMessageIterator(msg, replyIterator);
     return;
   }
 
   if (command === "!aic") {
     const prompt = text.slice(3);
-    const replyIterator = await ollama.generate(prompt, AgentType.CODING);
+    const replyIterator = await aiModule.generate(prompt, AgentType.CODING);
     await sendMessageIterator(msg, replyIterator);
+    return;
+  }
+  
+  if (command == "!sim") {
+    runSim(aiModule, {log: (line: string) => {
+        discordLogger.log({message: line, channel: msg.channel as TextChannel});
+      }
+    });
     return;
   }
 
@@ -144,11 +153,11 @@ export async function onMessage(ollama: AiModule, msg: Message) {
     const conversation = await getConversation(msg);
     if (conversation.length) {
       if (msg.channel.id == CHANNEL_SLEEP) {
-        const stream = streamForChat(ollama.chat(conversation, AgentType.BEDTIME));
+        const stream = streamForChat(aiModule.chat(conversation, AgentType.BEDTIME));
         const unused = await sendMessageIterator(msg, stream);
 
       } else {
-        const stream = streamForChat(ollama.chatItalian(conversation));
+        const stream = streamForChat(aiModule.chatItalian(conversation));
         const unused = await sendMessageIterator(msg, stream);
       }
     }

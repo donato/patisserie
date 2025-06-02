@@ -41,6 +41,7 @@
     "pino": "^9.0.0",
     "pubsub-js": "^1.9.4",
     "redis": "^4.6.10",
+    "rxjs": "^7.8.2",
     "simple-json-db": "^2.0.0",
     "ts-torn-api": "^0.1.61",
     "yaml": "^2.7.1"

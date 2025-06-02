@@ -82,3 +82,10 @@ export async function extractFinalResult(stream: AsyncIterable<string>) {
   }
   return lastLine;
 }
+export async function exhaust(stream: AsyncIterable<string>): Promise<string> {
+  let text = '';
+  for await (const s of stream) {
+    text+=s;
+  }
+  return text;
+}
