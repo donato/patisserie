@@ -12,17 +12,22 @@ export interface Logger {
 export function runSim(ai: AiModule, logger: Logger) {
 
   const llm: LLM = {
-    generate:(prompt: string) => {
-      return exhaust(ai.generate(prompt, AgentType.EMPTY));
+    generate: async (prompt: string) => {
+      console.log('===LLM PROMPT===')
+      console.log(prompt)
+      const s = await exhaust(ai.chat([{role: 'system', content: prompt}], AgentType.EMPTY));
+      console.log('===LLM RESPONSE===')
+      console.log(s);
+      return s;
     }
   }
 
-  const agent1 = new Agent("Alice (Shopkeeper)", "A friendly shopkeeper, always looking to make a sale.", llm, logger);
-  const agent2 = new Agent("Bob (Traveler)", "A curious traveler, always asking questions about new places.", llm, logger);
-  const agent3 = new Agent("Carol (Local)", "A quiet local, observant and occasionally offering advice.", llm, logger);
+  const environment = new Environment("A bustling town square with a few stalls and a well.", logger);
+  const agent1 = new Agent({ name: "Alice", role: "Shopkeeper", persona: "A friendly shopkeeper, always looking to make a sale.", environment, llm, logger });
+  const agent2 = new Agent({ name: "Bob", role: "Traveler", persona: "A curious traveler, always asking questions about new places.", environment, llm, logger });
+  const agent3 = new Agent({ name: "Carol", role: "Local", persona: "A quiet local, observant and occasionally offering advice.", environment, llm, logger });
 
-  const town_square = new Environment("A bustling town square with a few stalls and a well.", logger);
 
-  const simulation = new Simulation({agents:[agent1, agent2, agent3], environment:town_square, numTurns:1, logger});
+  const simulation = new Simulation({ llm, agents: [agent1, agent2, agent3], environment, numTurns: 3, logger });
   simulation.run()
 }

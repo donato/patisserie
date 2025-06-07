@@ -54,9 +54,10 @@ export class DiscordLogger {
    * Logs a message. This message will be added to the queue and emitted
    * according to the throttling interval.
    */
-  log(message: LogEntry): void {
+  log(log: LogEntry): void {
+    if (log.message.trim().length ===0) { return;}
     // Push the new message into the RxJS Subject.
-    this.logSubject.next(message);
+    this.logSubject.next(log);
   }
 
   /**

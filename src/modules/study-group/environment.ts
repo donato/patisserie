@@ -18,12 +18,15 @@ export class Environment {
     this.logger.log(`[Public Event] ${event}`); // For logging/debugging
   }
 
-  /**
-   * Returns recent public events that agents can 'see' or 'hear'.
-   * @returns A list of recent public event strings.
-   */
-  getLatestObservations(): string[] {
-    // For an MVP, just return the last few public events
-    return this.publicLog.slice(-5); // Adjust window as needed
+  getDescription() {
+    return this.description;
+  }
+
+  getWorldState() {
+    return `
+  - Time: Mid-morning.
+  - Weather: Sunny.
+  - Location Context: The town square is bustling. Alice (Shopkeeper) is at her stall. Bob (Traveler) is near the well. Carol (Local) is sitting on a bench. There is one bucket near the well.
+  `
   }
 }

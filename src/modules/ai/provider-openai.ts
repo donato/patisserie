@@ -1,4 +1,4 @@
-import { Agent } from './agents'
+import { Agent, AgentType } from './agents'
 import { Provider , CompletionResponse, ChatMessage} from "./provider";
 import OpenAI from 'openai';
 import { emptyIterator, transformAsyncIterator } from './stream-utils';
@@ -52,8 +52,14 @@ export class ProviderOpenaAi implements Provider {
       return m;
     })
 
+    // Short-term hack for the simulation
+    let format:'text'|'json_object' = 'text';
+    if (agent.type == AgentType.EMPTY) {
+      format = 'json_object';
+    }
     const completion = await this.client.chat.completions.create({
       model: 'gpt-4o-mini',
+      response_format: {type: format},
       messages: msgs,
       // stream: true
       stop: agent.stop_sequence,
