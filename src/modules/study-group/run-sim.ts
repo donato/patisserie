@@ -2,8 +2,11 @@ import { AgentType } from "../ai/agents"
 import { AiModule } from "../ai/ai-module"
 import { LLM, Agent } from "./agent"
 import { Environment } from "./environment"
-import { Simulation } from "./game-master"
+import { GameMaster, Simulation } from "./game-master"
 import { exhaust } from "../ai/stream-utils"
+import { BasicActingComponent } from "./components/basic-action-component"
+import { IdentityContextComponent } from "./components/identity-context-component"
+import { ObservationsComponent } from "./components/observations-component"
 
 export interface Logger {
   log: (m: string) => void;
@@ -15,7 +18,7 @@ export function runSim(ai: AiModule, logger: Logger) {
     generate: async (prompt: string) => {
       console.log('===LLM PROMPT===')
       console.log(prompt)
-      const s = await exhaust(ai.chat([{role: 'system', content: prompt}], AgentType.EMPTY));
+      const s = await exhaust(ai.chat([{ role: 'system', content: prompt }], AgentType.EMPTY));
       console.log('===LLM RESPONSE===')
       console.log(s);
       return s;
@@ -23,11 +26,34 @@ export function runSim(ai: AiModule, logger: Logger) {
   }
 
   const environment = new Environment("A bustling town square with a few stalls and a well.", logger);
-  const agent1 = new Agent({ name: "Alice", role: "Shopkeeper", persona: "A friendly shopkeeper, always looking to make a sale.", environment, llm, logger });
-  const agent2 = new Agent({ name: "Bob", role: "Traveler", persona: "A curious traveler, always asking questions about new places.", environment, llm, logger });
-  const agent3 = new Agent({ name: "Carol", role: "Local", persona: "A quiet local, observant and occasionally offering advice.", environment, llm, logger });
+  const agent1 = new Agent({
+    actingComponent: new BasicActingComponent(),
+    contextComponents: [
+      new IdentityContextComponent({
+        name: "Alice",
+        role: "Shopkeeper",
+        persona: "A friendly shopkeeper, always looking to make a sale.",
+      }),
+      new ObservationsComponent()
+    ],
+    llm,
+    logger,
+  });
+  // const agent2 = new Agent({
+  //   name: "Bob", role: "Traveler",
+  //   persona: "A curious but often delusional traveler. He confidently attempts to do impossible things because he thinks he is a wizard.",
+  //   environment, llm, logger
+  // });
+  // const agent3 = new Agent({ name: "Carol", role: "Local", persona: "A quiet local, observant and occasionally offering advice.", environment, llm, logger });
 
 
-  const simulation = new Simulation({ llm, agents: [agent1, agent2, agent3], environment, numTurns: 3, logger });
+  const gmEntity = new GameMaster({
+    name: 'Game Master',
+    actingComponent: new BasicActingComponent(),
+    contextComponents: []
+    , llm, logger
+  });
+  const simulation = new Simulation({ numTurns: 1, logger , gameMaster: gmEntity, actors: [agent1]});
+
   simulation.run()
 }

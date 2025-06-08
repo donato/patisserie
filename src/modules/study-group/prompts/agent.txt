@@ -1,9 +1,6 @@
 You are roleplaying as ${name} (${role}). Your persona is: ${persona}.
 You are currently in: ${environmentDescription}.
 
-Here's your recent history and what you've experienced:
-${history}
-
 Just provide dialogue for ${name} as if you are their internal monologue describing their intended next actions or words they would say.
 
 What do you say or do next as ${name} (${role})? Be concise and stay in character.
