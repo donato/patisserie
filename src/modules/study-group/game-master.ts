@@ -1,5 +1,5 @@
 import { Logger } from './run-sim';
-import { LLM } from './agent';
+import { LLM } from './types';
 import { createGroundingPrompt } from './prompts/prompts';
 import { IdentityContextComponent } from './components/identity-context-component';
 import { OutputType, ActionSpecSimple, EntityWithComponents, ActingComponent, BaseComponent, ContextComponent } from './types';
@@ -63,25 +63,6 @@ export class GameMaster {
     this.logger = logger;
   }
 
-  async resolve(actor: EntityWithComponents, callToAction: string) {
-    const identity = await actor.getComponent<IdentityContextComponent>(IdentityContextComponent);
-    const proposedAction = `${identity.name}: ${callToAction}.`;
-
-    const prompt = await createGroundingPrompt({
-      world: '',
-      proposedAction: proposedAction,
-      agentName: identity.name,
-      agentRole: identity.role
-    });
-    const result = await this.llm.generate(prompt)
-    const json = JSON.parse(result);
-    if (isValidGroundingResponse(json)) {
-      return json;
-    } {
-      throw 'Invalid grounding llm response';
-    }
-  }
-
   async getNextActorsToSimulate(actors: EntityWithComponents[]) {
     // TODO(): Can filter out actors who are not relevant to the scene.
     const action = 'What do you say or do next as ${name} (${role})? Be concise and stay in character.';
@@ -94,6 +75,7 @@ export class GameMaster {
     };
   }
 
+  /* Generates an observation for a specific agent, from their perspective. */
   async partialObservation(actor: EntityWithComponents) {
     // equivalent to Concordia MAKE_OBSERVATION
     const identity = await actor.getComponent<IdentityContextComponent>(IdentityContextComponent);
@@ -112,5 +94,24 @@ Respond with a JSON object containing \`observations\` (array of strings: what i
 
     const result = await this.llm.generate(prompt);
     return (JSON.parse(result) as any).observations.join('\n\n');
+  }
+
+  async resolve(actor: EntityWithComponents, callToAction: string) {
+    const identity = await actor.getComponent<IdentityContextComponent>(IdentityContextComponent);
+    const proposedAction = `${identity.name}: ${callToAction}.`;
+
+    const prompt = await createGroundingPrompt({
+      world: '',
+      proposedAction: proposedAction,
+      agentName: identity.name,
+      agentRole: identity.role
+    });
+    const result = await this.llm.generate(prompt)
+    const json = JSON.parse(result);
+    if (isValidGroundingResponse(json)) {
+      return json;
+    } {
+      throw 'Invalid grounding llm response';
+    }
   }
 }

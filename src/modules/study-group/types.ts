@@ -1,3 +1,8 @@
+// This ensures that any LLM you use with the Agent class will have a 'generate' method.
+export interface LLM {
+  generate(prompt: string): Promise<string>; // Assuming generate is async and returns a string
+}
+
 export enum OutputType {
   FREE_TEXT,
   NUMERIC_VALUE,
@@ -43,11 +48,8 @@ export class BaseComponent {
 
 /** A component that generates prompt context, both for agents and GM. */
 export interface ContextComponent extends BaseComponent {
-  preAction(actionSpec: ActionSpec): Promise<string>;
-  postAction(attempt: string): Promise<void>;
-  preObserve(observation: string): void;
-  postObserve(): void;
-  update(): void;
+  actionContext(actionSpec: ActionSpec): Promise<string>;
+  receiveObservation(attempt: string): Promise<void>;
 }
 
 export interface ActingComponent extends BaseComponent{

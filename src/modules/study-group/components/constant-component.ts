@@ -5,11 +5,11 @@ export class ConstantComponent extends BaseComponent implements ContextComponent
     super();
   }
 
-  async preAction(actionSpec: ActionSpec): Promise<string> {
+  async actionContext(actionSpec: ActionSpec): Promise<string> {
     return this.text;
   }
 
-  async postAction(attempt: string): Promise<void> {}
+  async receiveObservation(attempt: string): Promise<void> {}
 
   preObserve(observation: string): void {}
 

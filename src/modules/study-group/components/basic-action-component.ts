@@ -1,4 +1,4 @@
-import { LLM } from "../agent";
+import { LLM } from "../types";
 import { BaseComponent, ActingComponent, ActionSpec } from "../types";
 
 export class BasicActingComponent extends BaseComponent implements ActingComponent {

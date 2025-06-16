@@ -1,38 +1,24 @@
 import { Logger } from "./run-sim";
-import {ActingComponent, ContextComponent, EntityWithComponents, ActionSpec} from "./types";
-
-// This ensures that any LLM you use with the Agent class will have a 'generate' method.
-export interface LLM {
-  generate(prompt: string): Promise<string>; // Assuming generate is async and returns a string
-}
+import { LLM } from "./types";
+import { ActingComponent, ContextComponent, EntityWithComponents, ActionSpec } from "./types";
+import { collectContext } from "./components/utils";
 
 
 interface AgentConstructorParams {
   actingComponent: ActingComponent;
   contextComponents: ContextComponent[];
-  logger: Logger; 
+  logger: Logger;
   llm: LLM;
-}
-
-async function collectContext(components: ContextComponent[], actionSpec: ActionSpec) {
-  let sb : ([ContextComponent, string])[]= [];
-  for (let c of components) {
-    const context = await c.preAction(actionSpec);
-    if (context) {
-      sb.push([c, context]);
-    }
-  }
-  return Object.fromEntries(sb);
 }
 
 export class Agent implements EntityWithComponents {
   actingComponent: ActingComponent;
   contextComponents: ContextComponent[];
 
-  readonly logger: Logger; 
-  readonly llm: LLM; 
+  readonly logger: Logger;
+  readonly llm: LLM;
 
-  constructor({actingComponent, contextComponents, logger , llm}: AgentConstructorParams) {
+  constructor({ actingComponent, contextComponents, logger, llm }: AgentConstructorParams) {
     this.actingComponent = actingComponent;
     this.contextComponents = contextComponents;
     this.logger = logger;
@@ -53,25 +39,12 @@ export class Agent implements EntityWithComponents {
 
   async observe(observation: string) {
     this.contextComponents.forEach(component => {
-      component.preObserve(observation);
-    });
-    this.contextComponents.forEach(component => {
-      component.postObserve();
-    });
-    this.contextComponents.forEach(component => {
-      component.update();
+      component.receiveObservation(observation);
     });
   }
 
   async act(actionSpec: ActionSpec): Promise<string> {
     const contextMap = await collectContext(this.contextComponents, actionSpec);
-    const result = await this.actingComponent.getActionAttempt(contextMap, actionSpec);
-    this.contextComponents.forEach(component => {
-      component.postAction(result);
-    })
-    this.contextComponents.forEach(component => {
-      component.update();
-    })
-    return result;
+    return await this.actingComponent.getActionAttempt(contextMap, actionSpec);
   }
 }

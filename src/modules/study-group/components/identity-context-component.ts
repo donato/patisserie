@@ -18,17 +18,11 @@ export class IdentityContextComponent extends BaseComponent implements ContextCo
     this.persona = persona;
   }
 
-  async preAction(actionSpec: ActionSpec): Promise<string> {
+  async actionContext(actionSpec: ActionSpec): Promise<string> {
     return `
 You are roleplaying as ${this.name} (${this.role}). Your persona is: ${this.persona}.
 `;
   }
 
-  async postAction(attempt: string): Promise<void> {}
-
-  preObserve(observation: string): void {}
-
-  postObserve(): void {}
-
-  update(): void {}
+  async receiveObservation(attempt: string): Promise<void> {}
 }

@@ -37,8 +37,10 @@ export class Simulation {
       for (const actor of actionBlock.actors) {
         const observation = await gm.partialObservation(actor);
         actor.observe(observation);
+
         const proposedAction = await actor.act(actionBlock.actionSpec);
         this.logger.log('action attempted: ' + proposedAction);
+
         const event = await gm.resolve(actor, proposedAction);
         gm.events.push('[OBSERVATION] ' + event.description);
         this.logger.log('resolved action: ' + event.description);

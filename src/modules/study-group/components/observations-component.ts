@@ -7,17 +7,11 @@ export class ObservationsComponent extends BaseComponent implements ContextCompo
     super();
   }
 
-  async preAction(actionSpec: ActionSpec): Promise<string> {
+  async actionContext(actionSpec: ActionSpec): Promise<string> {
     return this.memories.slice(-5).join('\n');
   }
 
-  async postAction(attempt: string): Promise<void> {}
-
-  preObserve(observation: string): void {
+  async receiveObservation(observation: string) {
     this.memories.push(observation);
   }
-
-  postObserve(): void {}
-
-  update(): void {}
 }
