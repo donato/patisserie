@@ -14,6 +14,17 @@ interface AgentConstructorParams {
   llm: LLM;
 }
 
+async function collectContext(components: ContextComponent[], actionSpec: ActionSpec) {
+  let sb : ([ContextComponent, string])[]= [];
+  for (let c of components) {
+    const context = await c.preAction(actionSpec);
+    if (context) {
+      sb.push([c, context]);
+    }
+  }
+  return Object.fromEntries(sb);
+}
+
 export class Agent implements EntityWithComponents {
   actingComponent: ActingComponent;
   contextComponents: ContextComponent[];
@@ -43,22 +54,23 @@ export class Agent implements EntityWithComponents {
   async observe(observation: string) {
     this.contextComponents.forEach(component => {
       component.preObserve(observation);
+    });
+    this.contextComponents.forEach(component => {
       component.postObserve();
+    });
+    this.contextComponents.forEach(component => {
       component.update();
-    })
+    });
   }
 
   async act(actionSpec: ActionSpec): Promise<string> {
-    let sb = [];
-    for (let c of this.contextComponents) {
-      const context = await c.preAction(actionSpec);
-      if (context) {
-        sb.push(context);
-      }
-    }
-    const result = await this.llm.generate(sb.join('\n\n\n'));
+    const contextMap = await collectContext(this.contextComponents, actionSpec);
+    const result = await this.actingComponent.getActionAttempt(contextMap, actionSpec);
     this.contextComponents.forEach(component => {
       component.postAction(result);
+    })
+    this.contextComponents.forEach(component => {
+      component.update();
     })
     return result;
   }

@@ -1,5 +1,5 @@
 import { Logger } from './run-sim';
-import { Agent, LLM } from './agent';
+import { LLM } from './agent';
 import { createGroundingPrompt } from './prompts/prompts';
 import { IdentityContextComponent } from './components/identity-context-component';
 import { OutputType, ActionSpecSimple, EntityWithComponents, ActingComponent, BaseComponent, ContextComponent } from './types';
@@ -41,50 +41,26 @@ function isValidGroundingResponse(obj: any): obj is GroundingResponse {
 }
 
 export class GameMaster {
-  name: string;
-  actingComponent: ActingComponent;
   contextComponents: ContextComponent[];
   llm: LLM;
   logger: Logger;
-  gmEntity: Agent;
 
 
   // TODO - these should be shared across all GM instances
   events: string[] = [];
 
   constructor({
-    name,
-    actingComponent,
     contextComponents,
     llm,
     logger
   }: {
-    name: string,
-    actingComponent: ActingComponent,
     contextComponents: ContextComponent[],
     llm: LLM,
     logger: Logger;
   }) {
-    this.name = name;
-    this.actingComponent = actingComponent;
     this.contextComponents = contextComponents;
     this.llm = llm;
     this.logger = logger;
-    this.gmEntity = new Agent({
-      actingComponent,
-      contextComponents,
-      logger,
-      llm
-    })
-  }
-
-  getComponent(componentType: typeof BaseComponent) {
-    for (const c of this.contextComponents) {
-      if (c instanceof componentType) {
-        return c;
-      }
-    }
-    throw "Unexpected component type access"
   }
 
   async resolve(actor: EntityWithComponents, callToAction: string) {
@@ -108,10 +84,11 @@ export class GameMaster {
 
   async getNextActorsToSimulate(actors: EntityWithComponents[]) {
     // TODO(): Can filter out actors who are not relevant to the scene.
+    const action = 'What do you say or do next as ${name} (${role})? Be concise and stay in character.';
     return {
       actors,
       actionSpec: {
-        callToAction: "What do they do?",
+        callToAction:action,
         outputType: OutputType.FREE_TEXT
       } as ActionSpecSimple
     };
@@ -135,49 +112,5 @@ Respond with a JSON object containing \`observations\` (array of strings: what i
 
     const result = await this.llm.generate(prompt);
     return (JSON.parse(result) as any).observations.join('\n\n');
-  }
-}
-
-export class Simulation {
-  private numTurns: number;
-  private logger: Logger;
-  private gameMaster: GameMaster;
-  private actors: EntityWithComponents[];
-
-  constructor({ numTurns, logger, gameMaster, actors }: { numTurns: number, gameMaster: GameMaster, logger: Logger, actors: EntityWithComponents[] }) {
-    this.actors = actors;
-    this.numTurns = numTurns;
-    this.logger = logger;
-    this.gameMaster = gameMaster;
-  }
-
-  /** Different GMs can run in parallel on different areas of the simulation. */
-  async getNextGameMaster() {
-    return this.gameMaster;
-  }
-
-  /** Initiates the simulation. */
-  async run(): Promise<void> {
-    this.logger.log("--- Simulation Started ---");
-
-    this.gameMaster.events.push('[OBSERVATION] The premise is a town square where merchants sell their goods.');
-
-    for (let turn = 1; turn <= this.numTurns; turn++) {
-      this.logger.log(`--- Turn ${turn} ---`);
-      const gm = await this.getNextGameMaster();
-
-      const actionBlock = await gm.getNextActorsToSimulate(this.actors);
-
-      for (const actor of actionBlock.actors) {
-        const observation = await gm.partialObservation(actor);
-        actor.observe(observation);
-        const proposedAction = await actor.act(actionBlock.actionSpec);
-        this.logger.log('action attempted: ' + proposedAction);
-        const event = await gm.resolve(actor, proposedAction);
-        gm.events.push('[OBSERVATION] ' + event.description);
-        this.logger.log('resolved action: ' + event.description);
-      }
-    }
-    this.logger.log("--- Simulation Ended ---");
   }
 }

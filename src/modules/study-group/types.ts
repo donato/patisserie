@@ -52,5 +52,5 @@ export interface ContextComponent extends BaseComponent {
 
 export interface ActingComponent extends BaseComponent{
   getActionAttempt(contextMap: {[componentName: string]: string},
-                   acctionSpec: ActionSpec): string;
+                   actionSpec: ActionSpec): Promise<string>;
 }

@@ -1,12 +1,13 @@
 import { AgentType } from "../ai/agents"
+import { Simulation } from "./simulation"
 import { AiModule } from "../ai/ai-module"
 import { LLM, Agent } from "./agent"
-import { Environment } from "./environment"
-import { GameMaster, Simulation } from "./game-master"
+import { GameMaster } from "./game-master"
 import { exhaust } from "../ai/stream-utils"
 import { BasicActingComponent } from "./components/basic-action-component"
 import { IdentityContextComponent } from "./components/identity-context-component"
 import { ObservationsComponent } from "./components/observations-component"
+import { InstructionsFreeAction } from "./components/instructions-free-action"
 
 export interface Logger {
   log: (m: string) => void;
@@ -25,16 +26,16 @@ export function runSim(ai: AiModule, logger: Logger) {
     }
   }
 
-  const environment = new Environment("A bustling town square with a few stalls and a well.", logger);
   const agent1 = new Agent({
-    actingComponent: new BasicActingComponent(),
+    actingComponent: new BasicActingComponent(llm),
     contextComponents: [
       new IdentityContextComponent({
         name: "Alice",
         role: "Shopkeeper",
         persona: "A friendly shopkeeper, always looking to make a sale.",
       }),
-      new ObservationsComponent()
+      new ObservationsComponent(),
+      new InstructionsFreeAction(),
     ],
     llm,
     logger,
@@ -48,10 +49,7 @@ export function runSim(ai: AiModule, logger: Logger) {
 
 
   const gmEntity = new GameMaster({
-    name: 'Game Master',
-    actingComponent: new BasicActingComponent(),
-    contextComponents: []
-    , llm, logger
+    contextComponents: [], llm, logger
   });
   const simulation = new Simulation({ numTurns: 1, logger , gameMaster: gmEntity, actors: [agent1]});
 

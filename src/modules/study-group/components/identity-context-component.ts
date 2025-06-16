@@ -1,4 +1,3 @@
-import { createAgentPrompt } from "../prompts/prompts";
 import { BaseComponent, ContextComponent, ActionSpec } from "../types";
 
 interface ConstructorParams {
@@ -20,13 +19,9 @@ export class IdentityContextComponent extends BaseComponent implements ContextCo
   }
 
   async preAction(actionSpec: ActionSpec): Promise<string> {
-    return createAgentPrompt({
-      name: this.name,
-      role: this.role,
-      persona:this.persona,
-      environmentDescription: '',
-      history: ''
-    });
+    return `
+You are roleplaying as ${this.name} (${this.role}). Your persona is: ${this.persona}.
+`;
   }
 
   async postAction(attempt: string): Promise<void> {}
