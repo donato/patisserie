@@ -1,5 +1,9 @@
 import { BaseComponent, ContextComponent, ActionSpec } from "../types";
 
+/**
+ * A context component that always returns the same static text for generating
+ * action context.
+ */
 export class ConstantComponent extends BaseComponent implements ContextComponent {
   constructor(private readonly text: string) {
     super();
@@ -9,7 +13,7 @@ export class ConstantComponent extends BaseComponent implements ContextComponent
     return this.text;
   }
 
-  async receiveObservation(attempt: string): Promise<void> {}
+  async receiveObservations(obs: string[]): Promise<void> {}
 
   preObserve(observation: string): void {}
 

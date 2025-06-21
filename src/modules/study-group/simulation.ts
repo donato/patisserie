@@ -35,8 +35,8 @@ export class Simulation {
       const actionBlock = await gm.getNextActorsToSimulate(this.actors);
 
       for (const actor of actionBlock.actors) {
-        const observation = await gm.partialObservation(actor);
-        actor.observe(observation);
+        const observations = await gm.partialObservation(actor);
+        actor.observe(observations);
 
         const proposedAction = await actor.act(actionBlock.actionSpec);
         this.logger.log('action attempted: ' + proposedAction);

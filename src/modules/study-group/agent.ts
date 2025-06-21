@@ -37,9 +37,9 @@ export class Agent implements EntityWithComponents {
     throw "Unexpected component type access"
   }
 
-  async observe(observation: string) {
+  async observe(observations: string[]) {
     this.contextComponents.forEach(component => {
-      component.receiveObservation(observation);
+      component.receiveObservations(observations);
     });
   }
 

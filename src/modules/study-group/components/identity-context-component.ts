@@ -6,6 +6,9 @@ interface ConstructorParams {
   persona: string;
 }
 
+/**
+ * Represents the agents identity.
+ */
 export class IdentityContextComponent extends BaseComponent implements ContextComponent {
   name: string;
   role: string;
@@ -24,5 +27,5 @@ You are roleplaying as ${this.name} (${this.role}). Your persona is: ${this.pers
 `;
   }
 
-  async receiveObservation(attempt: string): Promise<void> {}
+  async receiveObservations(attempt: string[]): Promise<void> {}
 }

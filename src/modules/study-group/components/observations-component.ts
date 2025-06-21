@@ -1,5 +1,9 @@
 import { BaseComponent, ContextComponent, ActionSpec } from "../types";
 
+/**
+ * Records agent observations/memories and provides them back for generating 
+ * action context.
+ */
 export class ObservationsComponent extends BaseComponent implements ContextComponent {
   private memories: string[] = []
 
@@ -8,10 +12,16 @@ export class ObservationsComponent extends BaseComponent implements ContextCompo
   }
 
   async actionContext(actionSpec: ActionSpec): Promise<string> {
-    return this.memories.slice(-5).join('\n');
+    // TODO(): This should intelligently filter based on actionSpec.callToAction
+    const chosenMemories = this.memories.slice(-5);
+    const formattedMemories = chosenMemories.map(
+      m => `  - ${m}`
+    ).join('\n');
+
+    return `Recent observations from your perspective: \n\n${formattedMemories}`;
   }
 
-  async receiveObservation(observation: string) {
-    this.memories.push(observation);
+  async receiveObservations(observations: string[]) {
+    this.memories.push(...observations);
   }
 }

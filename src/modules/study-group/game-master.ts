@@ -76,7 +76,7 @@ export class GameMaster {
   }
 
   /* Generates an observation for a specific agent, from their perspective. */
-  async partialObservation(actor: EntityWithComponents) {
+  async partialObservation(actor: EntityWithComponents): Promise<string[]> {
     // equivalent to Concordia MAKE_OBSERVATION
     const identity = await actor.getComponent<IdentityContextComponent>(IdentityContextComponent);
     const events = this.events.join('\n\n');
@@ -93,7 +93,10 @@ Respond with a JSON object containing \`observations\` (array of strings: what i
 `;
 
     const result = await this.llm.generate(prompt);
-    return (JSON.parse(result) as any).observations.join('\n\n');
+    // TODO(): verify the structure of the response
+    const json = (JSON.parse(result) as any);
+    const obsArray = json['observations'];
+    return obsArray;
   }
 
   async resolve(actor: EntityWithComponents, callToAction: string) {

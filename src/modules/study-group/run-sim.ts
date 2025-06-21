@@ -16,6 +16,7 @@ export interface Logger {
 
 export function runSim(ai: AiModule, logger: Logger) {
 
+  // Wrap my local AiModule implementation to provide a simple/exchangable api. 
   const llm: LLM = {
     generate: async (prompt: string) => {
       console.log('===LLM PROMPT===')

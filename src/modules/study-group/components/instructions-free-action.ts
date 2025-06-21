@@ -10,6 +10,9 @@ Example Output:
   "speech": "I would NEVER say that! Who told you that rumor?",
 }`;
 
+/**
+ * Provides instructions for how the LLM should generate an agents action.
+ */
 export class InstructionsFreeAction extends ConstantComponent {
   constructor() {
     super(s)
