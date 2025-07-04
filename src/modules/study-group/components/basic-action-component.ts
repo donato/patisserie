@@ -1,4 +1,4 @@
-import { LLM } from "../types";
+import { LLM, OutputType } from "../types";
 import { BaseComponent, ActingComponent, ActionSpec } from "../types";
 
 /**
@@ -17,6 +17,6 @@ export class BasicActingComponent extends BaseComponent implements ActingCompone
     }
 
     sb.push(actionSpec.callToAction); // todo - formatting?
-    return await this.llm.generate(sb.join('\n\n\n'));
+    return await this.llm.freeText(sb.join('\n\n\n'));
   }
 }

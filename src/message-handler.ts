@@ -141,7 +141,7 @@ export async function onMessage(aiModule: AiModule, msg: Message, discordLogger:
   }
   
   if (command == "!sim") {
-    runSim(aiModule, {log: (line: string) => {
+    runSim({log: (line: string) => {
         discordLogger.log({message: line, channel: msg.channel as TextChannel});
       }
     });

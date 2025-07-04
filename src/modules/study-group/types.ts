@@ -1,6 +1,8 @@
 // This ensures that any LLM you use with the Agent class will have a 'generate' method.
 export interface LLM {
-  generate(prompt: string): Promise<string>; // Assuming generate is async and returns a string
+  freeText(prompt: string): Promise<string>;
+  json(prompt: string): Promise<string>;
+  choose(prompt: string, options:string[]): Promise<string>;
 }
 
 export enum OutputType {
@@ -28,6 +30,8 @@ export interface Entity {
 }
 
 export interface EntityWithComponents extends Entity {
+  id: symbol;
+
   getComponent<T>(componentType: any): T;
 }
 
@@ -60,4 +64,31 @@ export interface ContextComponent extends BaseComponent {
 export interface ActingComponent extends BaseComponent{
   getActionAttempt(contextMap: Map<Symbol, string>,
                    actionSpec: ActionSpec): Promise<string>;
+}
+
+export interface GroundedEnvironmentUpdate {
+  isChanged: boolean;
+  description: string,
+}
+
+export interface GroundedEnvironment {
+  /* Resolves an agents proposed action by:
+   *   - Updating its internal state
+   *   - Returning an event to be logged by the GM about changes in state.
+   */
+  resolve(actor: symbol, actionSpec: ActionSpec, proposedAction: string): Promise<GroundedEnvironmentUpdate>;
+}
+
+export interface Scenario {
+  /**
+   * Any information the gamemaster needs in order to set up the scenario.
+   * This information will be filtered through partialObservations to the
+   * agents.
+   */
+  getPremise(): string;
+
+  /**
+   * Return the actors who should be included in the next scene.
+   */
+  getNextActorsToSimulate(actors: EntityWithComponents[]): Promise<{actors: EntityWithComponents[], actionSpec: ActionSpec}>;
 }

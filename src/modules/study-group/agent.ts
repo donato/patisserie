@@ -18,7 +18,7 @@ export class Agent implements EntityWithComponents {
   readonly logger: Logger;
   readonly llm: LLM;
 
-  constructor({ actingComponent, contextComponents, logger, llm }: AgentConstructorParams) {
+  constructor({ actingComponent, contextComponents, logger, llm }: AgentConstructorParams, readonly id = Symbol()) {
     this.actingComponent = actingComponent;
     this.contextComponents = contextComponents;
     this.logger = logger;

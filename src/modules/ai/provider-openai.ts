@@ -52,11 +52,8 @@ export class ProviderOpenaAi implements Provider {
       return m;
     })
 
-    // Short-term hack for the simulation
-    let format:'text'|'json_object' = 'text';
-    if (agent.type == AgentType.EMPTY) {
-      format = 'json_object';
-    }
+    // TODO - consider enabling 'json_object'
+    const format = 'text';
     const completion = await this.client.chat.completions.create({
       model: 'gpt-4o-mini',
       response_format: {type: format},
@@ -70,5 +67,29 @@ export class ProviderOpenaAi implements Provider {
       content: completion.choices[0].message.content || ''
     }
     return constantToIterable(resp);
+  }
+
+  async sample(prompt: string, format:"text"|"json_object" = "text") {
+    const msgs: OpenAI.ChatCompletionMessageParam[] = [
+      {
+        role: 'system',
+        content: 'You always continue sentences provided '
+                + 'by the user and you never repeat what '
+                + 'the user already said.'
+      },
+      {
+        role: 'user',
+        content: prompt
+      }
+    ];
+    const completion = await this.client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      response_format: {type: format},
+      messages: msgs,
+      // stream: true
+      // stop: agent.stop_sequence,
+    });
+
+    return completion.choices[0].message.content || '';
   }
 }
